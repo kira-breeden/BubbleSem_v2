@@ -780,8 +780,7 @@ async function createTimeline() {
     timeline.push({
         type: jsPsychPipe,
         action: 'save',
-        experiment_id: 'YOUR_EXPERIMENT_ID_HERE', // replace with your DataPipe experiment ID
-        filename: filename,
+        experiment_id: 'PYSjeESL3lfq', 
         data_string: () => {
             console.log(`Saving ${consolidatedTrials.length} trials...`);
             if (consolidatedTrials.length > 0) {
@@ -803,7 +802,7 @@ async function createTimeline() {
         type: jsPsychHtmlKeyboardResponse,
         stimulus: function () {
             const surveyURL = getURLParameter('survey_url')
-                || 'https://uwmadison.co1.qualtrics.com/jfe/form/SV_2hiSFCTKI8N4Wbk';
+                || 'https://uwmadison.co1.qualtrics.com/jfe/form/SV_2gBjgNQpFFwXvhQ';
             const surveyWithId = `${surveyURL}${surveyURL.includes('?') ? '&' : '?'}subjCode=${subjCode}`;
 
             setTimeout(() => { window.location.href = surveyWithId; }, 2000);
