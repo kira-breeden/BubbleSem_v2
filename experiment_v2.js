@@ -162,6 +162,21 @@ function isAutoRevealed(jabberToken, realToken) {
     return ARTICLES.includes(cleanJ) || ARTICLES.includes(cleanR) || cleanJ === cleanR;
 }
 
+// Return token indices of all maskable words in a passage:
+// words that are nonce in jabber but real in the original — i.e. the two tokens differ.
+// Excludes the target token index and punctuation.
+function getMaskableTokenIndices(jabberTokens, realTokens, targetTokenIdx) {
+    const maskable = [];
+    for (let i = 0; i < jabberTokens.length; i++) {
+        if (i === targetTokenIdx) continue;
+        if (isPunct(jabberTokens[i])) continue;
+        if (!isAutoRevealed(jabberTokens[i], realTokens[i])) {
+            maskable.push(i);
+        }
+    }
+    return maskable;
+}
+
 // Update the on-screen points counter.
 function updatePointsDisplay(points) {
     const el = document.getElementById('points-counter');
@@ -242,13 +257,35 @@ function createBaselineTrial(trial, sectionTrialIndex, totalBaseline) {
     const targetTokenIdx = wordPosToTokenIndex(jabberTokens, trial.target_word_position);
     const maskingLevel   = trial.masking_level || 'some';
 
-    // Convert unmasked word positions (0-indexed, punctuation-ignored) to token indices.
-    const unmaskedWordPositions = parseJSONColumn(trial.unmasked_word_indices);
-    const unmaskedTokenIdxSet   = new Set(
-        unmaskedWordPositions
+    // Words that are always unmasked in every condition (specified in the CSV).
+    const alwaysUnmaskedWordPositions = parseJSONColumn(trial.unmasked_word_indices);
+    const alwaysUnmaskedTokenIdxSet = new Set(
+        alwaysUnmaskedWordPositions
             .map(pos => wordPosToTokenIndex(jabberTokens, pos))
             .filter(i => i >= 0)
     );
+
+    // Revealable pool: maskable words not already in the always-unmasked set.
+    // some_masked → randomly unmask 20% of pool; most_masked → 40%.
+    const revealFraction = (maskingLevel === 'most') ? 0.40 : 0.20;
+    const allMaskableTokenIndices = getMaskableTokenIndices(jabberTokens, realTokens, targetTokenIdx);
+    const revealablePool = allMaskableTokenIndices.filter(i => !alwaysUnmaskedTokenIdxSet.has(i));
+    const nToReveal = Math.round(revealablePool.length * revealFraction);
+
+    // Derive a per-trial seed from the global seed + trial index so each trial is
+    // independently reproducible but all trials are tied to the participant's session.
+    const trialRng = new SeededRandom(randomSeed + sectionTrialIndex * 1000);
+    const shuffledPool = trialRng.shuffle(revealablePool);
+    const randomlyUnmaskedTokenIdxSet = new Set(shuffledPool.slice(0, nToReveal));
+
+    // Combined set: always-unmasked + randomly sampled
+    const unmaskedTokenIdxSet = new Set([...alwaysUnmaskedTokenIdxSet, ...randomlyUnmaskedTokenIdxSet]);
+
+    // Record both sets of word positions (0-indexed, punct-excluded) for data output.
+    const tokenToWordPos = buildTokenToWordPosMap(jabberTokens);
+    const randomlyUnmaskedWordPositions = shuffledPool.slice(0, nToReveal)
+        .map(tokIdx => tokenToWordPos.get(tokIdx))
+        .filter(pos => pos !== undefined);
 
     return {
         type: jsPsychHtmlButtonResponse,
@@ -268,7 +305,8 @@ function createBaselineTrial(trial, sectionTrialIndex, totalBaseline) {
                 target_probability:     trial.target_probability,
                 real_passage:           realSentence,
                 jabber_passage:         jabberSentence,
-                unmasked_word_indices:  JSON.stringify(unmaskedWordPositions),
+                always_unmasked_word_indices:   JSON.stringify(alwaysUnmaskedWordPositions),
+                randomly_unmasked_word_indices: JSON.stringify(randomlyUnmaskedWordPositions),
             };
 
             let html = `
