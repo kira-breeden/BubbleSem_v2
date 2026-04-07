@@ -313,7 +313,7 @@ function createBaselineTrial(trial, sectionTrialIndex, totalBaseline) {
                 <div class="trial-counter">
                     Section 1 &mdash; Trial ${sectionTrialIndex + 1} of ${totalBaseline}
                 </div>
-                <div class="sentence-container" id="sentence-container">
+                <div class="sentence-container baseline-passage" id="sentence-container">
             `;
 
             for (let i = 0; i < jabberTokens.length; i++) {
@@ -419,7 +419,7 @@ function createSamplingTrial(trial, sectionTrialIndex, totalSampling) {
                         Section 2 &mdash; Trial ${sectionTrialIndex + 1} of ${totalSampling}
                     </div>
                     <div class="points-counter" id="points-counter">Points: ${trialPoints}</div>
-                    <div class="sentence-container" id="sentence-container">
+                    <div class="sentence-container sampling-passage" id="sentence-container">
             `;
 
             for (let i = 0; i < jabberTokens.length; i++) {
@@ -437,7 +437,7 @@ function createSamplingTrial(trial, sectionTrialIndex, totalSampling) {
                     html += `<span class="word">${realTokens[i]}</span> `;
                 } else {
                     // All other words start masked; id used for DOM update on reveal
-                    html += `<span class="word sampling-masked" id="word-tok-${i}"
+                    html += `<span class="word clickable" id="word-tok-${i}"
                                    data-real="${realTokens[i]}">${token}</span> `;
                 }
             }
@@ -482,8 +482,8 @@ function createSamplingTrial(trial, sectionTrialIndex, totalSampling) {
                 const wordEl = document.getElementById(`word-tok-${tokenIdx}`);
                 if (wordEl) {
                     wordEl.textContent = realTokens[tokenIdx];
-                    wordEl.classList.remove('sampling-masked');
-                    wordEl.classList.add('sampling-revealed');
+                    wordEl.classList.remove('clickable');
+                    wordEl.classList.add('revealed');
                 }
 
                 if (revealQueue.length === 0) revealBtn.disabled = true;
