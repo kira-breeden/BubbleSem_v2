@@ -12,18 +12,14 @@
 //   - within-subjects: 5 optimal + 5 suboptimal trajectories
 //
 // CSV files required (per sublist):
-//   baseline_sublist_X.csv  — 10 trials (5 some_masked + 5 most_masked)
-//     columns: target_word, passage_variant, jabber_passage,
+//   trial_lists/sublist_X.csv  — 20 trials (10 baseline + 10 sampling, in that order)
+//     columns: phase, target_word, passage_variant, jabber_passage,
 //              target_word_position, masking_level, unmasked_word_indices,
-//              entropy, target_probability, [trial_number, ...]
-//
-//   sampling_sublist_X.csv  — 10 trials (5 optimal + 5 suboptimal)
-//     columns: target_word, passage_variant, jabber_passage,
-//              target_word_position, reveal_order, sampling_order_type,
+//              sampling_order_type, reveal_order,
 //              entropy, target_probability, [trial_number, ...]
 //
 // URL parameters:
-//   sublist=1|2|3|4   (default: 1)
+//   sublist=1..16  (default: 1)
 //   subjCode=<string> (default: random ID)
 // ============================================================
 
@@ -58,7 +54,7 @@ const sublistParam = getURLParameter('sublist');
 let sublistNumber = 1;
 if (sublistParam) {
     const parsed = parseInt(sublistParam);
-    if (parsed >= 1 && parsed <= 4) {
+    if (parsed >= 1 && parsed <= 16) {
         sublistNumber = parsed;
     } else {
         console.warn(`Invalid sublist parameter "${sublistParam}", defaulting to 1.`);
@@ -216,13 +212,12 @@ function loadCSV(csvFilename) {
 }
 
 async function loadAllTrialData() {
-    const baselineFile = `baseline_sublist_${sublistNumber}.csv`;
-    const samplingFile  = `sampling_sublist_${sublistNumber}.csv`;
+    const sublistFile = `trial_lists/sublist_${sublistNumber}.csv`;
+    const allTrials = await loadCSV(sublistFile);
 
-    const [baseline, sampling] = await Promise.all([
-        loadCSV(baselineFile),
-        loadCSV(samplingFile)
-    ]);
+    // Split on phase column — baseline rows first, then sampling rows
+    const baseline = allTrials.filter(t => t.phase === 'baseline');
+    const sampling  = allTrials.filter(t => t.phase === 'sampling');
 
     // Shuffle both independently with seeded RNG so order is reproducible
     const rng = new SeededRandom(randomSeed);
@@ -839,9 +834,8 @@ createTimeline()
         document.body.innerHTML = `
             <div style="text-align: center; padding: 50px;">
                 <h2>Error Loading Experiment</h2>
-                <p>Could not load trial lists for sublist ${sublistNumber}.</p>
-                <p>Make sure <code>baseline_sublist_${sublistNumber}.csv</code> and
-                   <code>sampling_sublist_${sublistNumber}.csv</code> exist.</p>
+                <p>Could not load trial list for sublist ${sublistNumber}.</p>
+                <p>Make sure <code>trial_lists/sublist_${sublistNumber}.csv</code> exists.</p>
                 <p style="color: red;">Error: ${error.message}</p>
             </div>
         `;
