@@ -637,28 +637,44 @@ const transitionScreen = {
 
 // --- Section 2 instructions ---
 
+const PHASE2_EXAMPLE_PASSAGE = [
+    "Ghoc and splync . Splync he had gwob gwob . We 're doing a dwoque neight down .",
+    "Knurt sneese to to to dwoque Neight Down dwazz down . It 's scis when you shroosh",
+    "the throck wherg about this maunch in and out gheint . Knurt . The prerk wrudd is a",
+    "dwazz . The prerk gheathe is a blalf which is fuite . Knurt . Why you wherg I did",
+    "that ? I do n't ghegging greash because they twieve more sweil . Sneese to grong the",
+    "dwazz dwazz but the twoofs off have scuthed about this phu plaiths the blalf Blaint",
+    "in-and-out Gheint is the rirm in-and-out Gheint . Thweil , you greash what knime 's",
+    "threrb a plause . Knurt , you greash sweil threrb plauses for gwal these drorbs Nalc",
+    "gwalph whuile of the Dwazz-Dwazz . Knurt . No , just no do n't gwalph whuile of it",
+    "crolt the shroosh crolt . The shroosh prerk wrudd is a blalf to is a dwazz . Knurt .",
+    "That 's dwoll a flurl vewn flurl vewn dwaul threrb it Now threrb an grune shreight .",
+    "That 's brulf . That 's sprate . We do n't we do n't twieve to yalt , you greash ,",
+    "fru . So , knurt , it was brulf uzz . Knurt , it was girchs . So yipe plaith we did",
+    "a dwoque splusk of dwoss . So this plaith we phleethed to do wrudd again and we did",
+    "it for yisque yisque The Screrf and whadd cloop of dwoan strilges , which you will",
+    "phiv why Thweil , we 've scuthed about it a thwipe whealt a cralph here. ",
+].join(' ');
+
 const phase2Instructions1 = {
     type: jsPsychHtmlKeyboardResponse,
     stimulus: `
         <div style="max-width: 650px; margin: 0 auto; text-align: left;">
             <h2>Part 2 Instructions</h2>
-            <p>In this part you will read <strong>longer passages</strong> where most
-            of the words are replaced with nonsense. After reading each passage, you will
-            answer one question:</p>
-            <p style="margin: 20px 30px; font-size: 17px;">
+            <p>In this part you will read passages where <strong>most words have been
+            replaced with nonsense</strong>. Only common function words like
+            <em>the</em>, <em>a</em>, <em>and</em>, <em>in</em>, etc. remain as real
+            English words.</p>
+            <p>After reading each passage you will answer:</p>
+            <p style="margin: 16px 30px; font-size: 17px;">
                 <em>"What do you think this passage is about?"</em>
             </p>
-            <p>Your job:</p>
-            <ol>
-                <li>Read the passage carefully.</li>
-                <li>In the text box below the passage, describe what you think this passage 
-                is about.</li>
-                <li>Click <strong>Submit</strong> when you are done.</li>
-            </ol>
-            <p>We know this is asking a lot, but take your best guess as to the meaning 
-            of the original text. A sentence or two will do. Remember, those nonsense 
-            words were randomly assigned to real English words so don't rely on the words 
-            being accidentally similar to real English words.</p>
+            <p>We know most of the words are unreadable — that is intentional. Use the
+            function words, grammar, and overall structure to make your best guess at
+            the meaning. Write a few sentences. There are no right or wrong answers.</p>
+            <p><strong>Important:</strong> the nonsense words are randomly assigned
+            and are not secretly similar to real words, so do not try to decode them
+            letter by letter — focus on the structure of the text.</p>
             <p><em>Press any key to see examples</em></p>
         </div>
     `
@@ -667,43 +683,67 @@ const phase2Instructions1 = {
 const phase2Instructions2 = {
     type: jsPsychHtmlKeyboardResponse,
     stimulus: `
-        <div style="max-width: 650px; margin: 0 auto; text-align: left;">
-            <h2>Part 2 — Examples of Good Responses</h2>
-            <p>Here are examples of the kind of response we are looking for.</p>
+        <div style="max-width: 700px; margin: 0 auto; text-align: left;">
+            <h2>Part 2 — Examples</h2>
 
-            <div style="background: #f5f5f5; border-left: 4px solid #2196f3;
-                        padding: 14px 18px; margin: 18px 0; border-radius: 3px;">
-                <p style="margin: 0 0 8px 0;"><strong>Example passage:</strong></p>
-                <p style="margin: 0 0 12px 0; font-style: italic;">
-                    "She adjusted the stirrups and tightened the girth before mounting.
-                    The trail wound through tall pines as the animal picked its way
-                    carefully over the rocky ground."
+            <p>Here is an example of what a passage will look like:</p>
+
+            <div style="background: #fafafa; border: 1px solid #ddd; border-radius: 6px;
+                        padding: 18px 22px; margin: 14px 0 24px 0;
+                        font-size: 18px; line-height: 1.8;">
+                ${PHASE2_EXAMPLE_PASSAGE}
+            </div>
+
+            <p>Below are examples of <strong>good</strong> and <strong>bad</strong>
+            responses to that passage.</p>
+
+            <div style="background: #f1f8f1; border-left: 4px solid #2e7d32;
+                        padding: 14px 18px; margin: 14px 0; border-radius: 3px;">
+                <p style="margin: 0 0 6px 0; font-weight: bold; color: #2e7d32;">
+                    ✓ Good response
                 </p>
-                <p style="margin: 0 0 4px 0;"><strong>Good response:</strong></p>
-                <p style="margin: 0; color: #2e7d32;">
-                    "This passage is about someone going horseback riding on a trail
-                    through a forest. It describes the rider preparing the horse and
-                    then riding through a wooded, rocky area."
+                <p style="margin: 0;">
+                    "This seems to be about a man walking somewhere — maybe along a street
+                    or path. He pauses at some point and does something before continuing.
+                    Another person (a woman) passes by him, and he waits for a bit before
+                    moving on toward some kind of gathering or destination."
                 </p>
             </div>
 
-            <div style="background: #f5f5f5; border-left: 4px solid #2196f3;
-                        padding: 14px 18px; margin: 18px 0; border-radius: 3px;">
-                <p style="margin: 0 0 8px 0;"><strong>Example passage:</strong></p>
-                <p style="margin: 0 0 12px 0; font-style: italic;">
-                    "The dough had proofed overnight. She punched it down, shaped it
-                    into loaves, and slid them into the hot oven."
+            <div style="background: #f1f8f1; border-left: 4px solid #2e7d32;
+                        padding: 14px 18px; margin: 14px 0; border-radius: 3px;">
+                <p style="margin: 0 0 6px 0; font-weight: bold; color: #2e7d32;">
+                    ✓ Good response
                 </p>
-                <p style="margin: 0 0 4px 0;"><strong>Good response:</strong></p>
-                <p style="margin: 0; color: #2e7d32;">
-                    "This passage seems to be about baking bread. Someone is working
-                    with dough that has been left to rise and is now putting it in
-                    the oven to bake."
+                <p style="margin: 0;">
+                    "Someone is moving through a place, stops briefly, and a second
+                    person passes without acknowledging them. The first person lingers
+                    then continues in a particular direction."
                 </p>
             </div>
 
-            <p>Write at least two or three sentences. It is fine to be uncertain —
-            just describe your best interpretation.</p>
+            <div style="background: #fff4f4; border-left: 4px solid #c62828;
+                        padding: 14px 18px; margin: 14px 0; border-radius: 3px;">
+                <p style="margin: 0 0 6px 0; font-weight: bold; color: #c62828;">
+                    ✗ Bad response — too vague, no attempt at interpretation
+                </p>
+                <p style="margin: 0; color: #555;">
+                    "I can't understand it."
+                </p>
+            </div>
+
+            <div style="background: #fff4f4; border-left: 4px solid #c62828;
+                        padding: 14px 18px; margin: 14px 0; border-radius: 3px;">
+                <p style="margin: 0 0 6px 0; font-weight: bold; color: #c62828;">
+                    ✗ Bad response — describes the surface, not the meaning
+                </p>
+                <p style="margin: 0; color: #555;">
+                    "It's a passage with a lot of made-up words."
+                </p>
+            </div>
+
+            <p style="margin-top: 20px;">Do your best — even an uncertain interpretation
+            is valuable to us.</p>
             <p><em>Press any key to start Part 2</em></p>
         </div>
     `
