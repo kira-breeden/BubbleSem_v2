@@ -46,22 +46,11 @@ function getURLParameter(name) {
 
 const subjCode = getURLParameter('subjCode') || jsPsych.randomization.randomID(10);
 
-const sublistParam = getURLParameter('sublist');
-let sublistNumber = 1;
-if (sublistParam) {
-    const parsed = parseInt(sublistParam);
-    if (parsed >= 1 && parsed <= 8) {
-        sublistNumber = parsed;
-    } else {
-        console.warn(`Invalid sublist parameter "${sublistParam}", defaulting to 1.`);
-    }
-}
+let sublistNumber = null;  // set in assignSublist() at timeline start
 
 const seedParam  = getURLParameter('seed');
 const randomSeed = seedParam ? parseInt(seedParam) : Math.floor(Math.random() * 1000000);
-const filename = `${subjCode}.csv`;
-
-console.log(`SubjectCode: ${subjCode} | Sublist: ${sublistNumber} | Seed: ${randomSeed}`);
+const filename   = `${subjCode}.csv`;
 
 // ===== JSPSYCH INIT =====
 
@@ -190,6 +179,39 @@ function arrayToCSV(data) {
         headers.join(','),
         ...data.map(row => headers.map(h => escape(row[h])).join(','))
     ].join('\n');
+}
+
+// ===== CONDITION ASSIGNMENT =====
+
+const EXPERIMENT_ID = 'PYSjeESL3lfq';
+const N_SUBLISTS    = 8;
+
+// Returns a sublist number (1–8).
+// If ?sublist= is in the URL, uses that.
+// Otherwise calls the DataPipe condition assignment API for counterbalanced assignment.
+async function assignSublist() {
+    const param  = getURLParameter('sublist');
+    const parsed = parseInt(param);
+    if (param && parsed >= 1 && parsed <= N_SUBLISTS) {
+        console.log(`Sublist from URL: ${parsed}`);
+        return parsed;
+    }
+
+    try {
+        const resp = await fetch('https://pipe.jspsych.org/api/condition/', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ experiment_id: EXPERIMENT_ID })
+        });
+        const data = await resp.json();
+        // DataPipe returns 0-indexed condition; map to 1–N_SUBLISTS
+        const assigned = (parseInt(data.condition) % N_SUBLISTS) + 1;
+        console.log(`Sublist from DataPipe condition assignment: ${assigned}`);
+        return assigned;
+    } catch (err) {
+        console.warn('DataPipe condition assignment failed, defaulting to sublist 1.', err);
+        return 1;
+    }
 }
 
 // ===== DATA LOADING =====
@@ -620,8 +642,8 @@ const phase2Instructions1 = {
     stimulus: `
         <div style="max-width: 650px; margin: 0 auto; text-align: left;">
             <h2>Part 2 Instructions</h2>
-            <p>In this part you will read <strong>longer passages</strong> written in
-            normal English (no nonsense words). After reading each passage, you will
+            <p>In this part you will read <strong>longer passages</strong> where most
+            of the words are replaced with nonsense. After reading each passage, you will
             answer one question:</p>
             <p style="margin: 20px 30px; font-size: 17px;">
                 <em>"What do you think this passage is about?"</em>
@@ -629,13 +651,14 @@ const phase2Instructions1 = {
             <p>Your job:</p>
             <ol>
                 <li>Read the passage carefully.</li>
-                <li>In the text box below the passage, write a few sentences describing
-                    what you think the passage is about — the topic, situation, or
-                    meaning.</li>
+                <li>In the text box below the passage, describe what you think this passage 
+                is about.</li>
                 <li>Click <strong>Submit</strong> when you are done.</li>
             </ol>
-            <p>There are no right or wrong answers. We are interested in your honest
-            interpretation.</p>
+            <p>We know this is asking a lot, but take your best guess as to the meaning 
+            of the original text. A sentence or two will do. Remember, those nonsense 
+            words were randomly assigned to real English words so don't rely on the words 
+            being accidentally similar to real English words.</p>
             <p><em>Press any key to see examples</em></p>
         </div>
     `
@@ -716,6 +739,8 @@ const savingScreen = {
 // ===== TIMELINE =====
 
 async function createTimeline() {
+    sublistNumber = await assignSublist();
+    console.log(`SubjectCode: ${subjCode} | Sublist: ${sublistNumber} | Seed: ${randomSeed}`);
     await loadAllTrialData();
 
     const timeline = [
