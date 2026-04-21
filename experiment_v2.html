@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Word Guessing Experiment</title>
+    <title>Language Comprehension Experiment</title>
     <script src="https://unpkg.com/jspsych@7.3.1"></script>
     <script src="https://unpkg.com/@jspsych/plugin-html-keyboard-response@1.1.2"></script>
     <script src="https://unpkg.com/@jspsych/plugin-html-button-response@1.1.2"></script>
@@ -151,6 +151,51 @@
             text-align: left;
             font-size: 16px;
             line-height: 2;
+        }
+
+        /* ---- Open-ended passage (Phase 2) ---- */
+
+        .open-ended-passage {
+            font-size: 20px;
+            line-height: 1.8;
+            text-align: left;
+            max-width: 720px;
+            margin: 30px auto 0 auto;
+            padding: 20px 28px;
+            background: #fafafa;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+        }
+
+        .open-ended-question {
+            max-width: 720px;
+            margin: 24px auto 0 auto;
+            text-align: left;
+        }
+
+        .open-ended-question label {
+            display: block;
+            font-size: 17px;
+            margin-bottom: 10px;
+            line-height: 1.5;
+        }
+
+        .open-ended-question textarea {
+            width: 100%;
+            font-size: 16px;
+            padding: 10px 12px;
+            border: 1px solid #bbb;
+            border-radius: 5px;
+            resize: vertical;
+            box-sizing: border-box;
+            font-family: inherit;
+            line-height: 1.5;
+        }
+
+        .open-ended-question textarea:focus {
+            outline: none;
+            border-color: #2196f3;
+            box-shadow: 0 0 0 2px rgba(33,150,243,0.2);
         }
     </style>
 </head>
