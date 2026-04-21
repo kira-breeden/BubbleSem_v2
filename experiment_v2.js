@@ -700,45 +700,42 @@ const phase2Instructions2 = {
             <div style="background: #f1f8f1; border-left: 4px solid #2e7d32;
                         padding: 14px 18px; margin: 14px 0; border-radius: 3px;">
                 <p style="margin: 0 0 6px 0; font-weight: bold; color: #2e7d32;">
-                    ✓ Good response
+                    Good response
                 </p>
                 <p style="margin: 0;">
-                    "This seems to be about a man walking somewhere — maybe along a street
-                    or path. He pauses at some point and does something before continuing.
-                    Another person (a woman) passes by him, and he waits for a bit before
-                    moving on toward some kind of gathering or destination."
+                    "The speaker is walking someone through a process or set of instructions, 
+                    emphasizing how to perform actions correctly and what to watch out for."
                 </p>
             </div>
 
             <div style="background: #f1f8f1; border-left: 4px solid #2e7d32;
                         padding: 14px 18px; margin: 14px 0; border-radius: 3px;">
                 <p style="margin: 0 0 6px 0; font-weight: bold; color: #2e7d32;">
-                    ✓ Good response
+                    Good response
                 </p>
                 <p style="margin: 0;">
-                    "Someone is moving through a place, stops briefly, and a second
-                    person passes without acknowledging them. The first person lingers
-                    then continues in a particular direction."
+                    "A person talking to themselves about something they're trying 
+                    to convince themselves they're sure of (they're not)."
                 </p>
             </div>
 
             <div style="background: #fff4f4; border-left: 4px solid #c62828;
                         padding: 14px 18px; margin: 14px 0; border-radius: 3px;">
                 <p style="margin: 0 0 6px 0; font-weight: bold; color: #c62828;">
-                    ✗ Bad response — too vague, no attempt at interpretation
+                    Bad response — too vague, no attempt at interpretation
                 </p>
                 <p style="margin: 0; color: #555;">
-                    "I can't understand it."
+                    "It's a story."
                 </p>
             </div>
 
             <div style="background: #fff4f4; border-left: 4px solid #c62828;
                         padding: 14px 18px; margin: 14px 0; border-radius: 3px;">
                 <p style="margin: 0 0 6px 0; font-weight: bold; color: #c62828;">
-                    ✗ Bad response — describes the surface, not the meaning
+                    Bad response — too vague, no attempt at interpretation
                 </p>
                 <p style="margin: 0; color: #555;">
-                    "It's a passage with a lot of made-up words."
+                    "It's a conversation."
                 </p>
             </div>
 
