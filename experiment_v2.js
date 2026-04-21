@@ -203,9 +203,20 @@ async function assignSublist() {
             headers: { 'Content-Type': 'application/json' },
             body:    JSON.stringify({ experiment_id: EXPERIMENT_ID })
         });
+        console.log('DataPipe response status:', resp.status);
+        if (!resp.ok) {
+            console.warn(`DataPipe returned HTTP ${resp.status} — defaulting to sublist 1.`);
+            return 1;
+        }
         const data = await resp.json();
+        console.log('DataPipe response body:', data);
+        const conditionNum = parseInt(data.condition);
+        if (isNaN(conditionNum)) {
+            console.warn('DataPipe returned unexpected condition value:', data, '— defaulting to sublist 1.');
+            return 1;
+        }
         // DataPipe returns 0-indexed condition; map to 1–N_SUBLISTS
-        const assigned = (parseInt(data.condition) % N_SUBLISTS) + 1;
+        const assigned = (conditionNum % N_SUBLISTS) + 1;
         console.log(`Sublist from DataPipe condition assignment: ${assigned}`);
         return assigned;
     } catch (err) {
