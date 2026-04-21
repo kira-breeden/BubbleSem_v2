@@ -388,7 +388,7 @@ function createBaselineTrial(trial, sectionTrialIndex, totalBaseline) {
 // Response and timing are saved directly here (no separate guess/confidence screens).
 
 function createOpenEndedTrial(trial, sectionTrialIndex, totalPhase2) {
-    const passage = trial.jabber_text_short || '';
+    const passage = trial.jabber_passage || '';
 
     return {
         type: jsPsychHtmlButtonResponse,
