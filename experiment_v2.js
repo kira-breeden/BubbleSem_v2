@@ -332,9 +332,6 @@ function createBaselineTrial(trial, sectionTrialIndex, totalBaseline, trialNumbe
             };
 
             let html = `
-                <div class="trial-counter">
-                    Section 1 &mdash; Trial ${sectionTrialIndex + 1} of ${totalBaseline}
-                </div>
                 <div class="sentence-container baseline-passage" id="sentence-container">
             `;
 
@@ -412,9 +409,6 @@ function createOpenEndedTrial(trial, sectionTrialIndex, totalPhase2, trialNumber
             };
 
             return `
-                <div class="trial-counter">
-                    Section 2 &mdash; Trial ${sectionTrialIndex + 1} of ${totalPhase2}
-                </div>
                 <div class="sentence-container open-ended-passage" id="sentence-container">
                     ${passage}
                 </div>
@@ -583,9 +577,9 @@ const welcome = {
     type: jsPsychHtmlKeyboardResponse,
     stimulus: `
         <div style="max-width: 600px; margin: 0 auto; text-align: left;">
-            <h1>Language Comprehension Experiment</h1>
+            <h1>Welcome!</h1>
             <p>In this experiment you will read passages and answer questions about them.
-            The experiment has two parts. You will receive instructions for each part
+            The experiment has three parts. You will receive instructions for each part
             before it begins.</p>
             <p><em>Press any key to continue</em></p>
         </div>
@@ -769,7 +763,8 @@ const savingScreen = {
         <div style="text-align: center; padding: 50px;">
             <h2>Saving your data...</h2>
             <p style="font-size: 18px; margin-top: 30px;">
-                Please wait — do not close this window.
+                Please wait — do not close this window. 
+                You will be redirected to the final phase of the study.
             </p>
             <div style="margin-top: 30px;">
                 <div style="display: inline-block; width: 50px; height: 50px;
