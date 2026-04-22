@@ -65,6 +65,7 @@ Full coverage across 8 sublists:
     Minimum participants for full coverage: 8 (one per sublist).
 """
 
+import json
 import os
 import pandas as pd
 import numpy as np
@@ -154,11 +155,39 @@ if 'target_word_position' not in df.columns or df['target_word_position'].isna()
             print(f'    seed={row["passage_seed_num"]} target="{row["target_word"]}"  '
                   f'passage: {row["passage_variant"][:80]}')
 
-# Add placeholder masking-index columns if absent
-for col in ['unmasked_word_indices_some', 'unmasked_word_indices_most']:
-    if col not in df.columns:
-        df[col] = '[]'
-        print(f'  Added placeholder column: {col}')
+# ── Load greedy trajectories and compute unmasked indices ─────────────────────
+
+GREEDY_CSV = 'passage_greedy_trajectories.csv'
+print(f'Loading {GREEDY_CSV}...')
+greedy_df = pd.read_csv(GREEDY_CSV, usecols=['real_passage', 'greedy_words', 'greedy_indices'])
+
+def _first_pct(indices_json, pct):
+    """Return first pct% (by count) of a JSON list of indices, as a JSON string."""
+    indices = json.loads(indices_json) if isinstance(indices_json, str) else []
+    n = max(1, round(len(indices) * pct))
+    return json.dumps(indices[:n])
+
+greedy_df['unmasked_word_indices_some'] = greedy_df['greedy_indices'].apply(
+    lambda x: _first_pct(x, 0.20)
+)
+greedy_df['unmasked_word_indices_most'] = greedy_df['greedy_indices'].apply(
+    lambda x: _first_pct(x, 0.40)
+)
+
+df = df.merge(
+    greedy_df[['real_passage', 'unmasked_word_indices_some', 'unmasked_word_indices_most']],
+    left_on='passage_variant',
+    right_on='real_passage',
+    how='left'
+).drop(columns='real_passage')
+
+n_missing = df['unmasked_word_indices_some'].isna().sum()
+if n_missing > 0:
+    print(f'  WARNING: {n_missing} rows had no match in {GREEDY_CSV} — defaulting to []')
+    df['unmasked_word_indices_some'] = df['unmasked_word_indices_some'].fillna('[]')
+    df['unmasked_word_indices_most'] = df['unmasked_word_indices_most'].fillna('[]')
+else:
+    print(f'  OK   greedy indices merged for all {len(df)} rows')
 
 # ── Load open-ended passages (same for all sublists) ──────────────────────────
 

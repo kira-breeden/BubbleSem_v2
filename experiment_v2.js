@@ -267,7 +267,7 @@ async function loadAllTrialData() {
 // Shows the passage with predetermined masked/unmasked words.
 // No reveal interactivity — participant clicks "Make Guess" when ready.
 
-function createBaselineTrial(trial, sectionTrialIndex, totalBaseline) {
+function createBaselineTrial(trial, sectionTrialIndex, totalBaseline, trialNumber) {
     const realSentence   = trial.real_passage    || '';
     const jabberSentence = trial.jabber_passage  || '';
     const realTokens     = tokenizeSentence(realSentence);
@@ -317,7 +317,8 @@ function createBaselineTrial(trial, sectionTrialIndex, totalBaseline) {
                 sublist:                sublistNumber,
                 random_seed:            randomSeed,
                 trial_type:             'baseline',
-                trial_number:           trial.trial_number,
+                trial_number:           trialNumber,
+                trial_list_index:       trial.trial_number,
                 condition:              maskingLevel,
                 section_trial_index:    sectionTrialIndex + 1,
                 target_word:            trial.target_word,
@@ -388,7 +389,7 @@ function createBaselineTrial(trial, sectionTrialIndex, totalBaseline) {
 // about what the participant thinks the passage is about.
 // Response and timing are saved directly here (no separate guess/confidence screens).
 
-function createOpenEndedTrial(trial, sectionTrialIndex, totalPhase2) {
+function createOpenEndedTrial(trial, sectionTrialIndex, totalPhase2, trialNumber) {
     const passage = trial.jabber_passage || '';
 
     return {
@@ -401,7 +402,8 @@ function createOpenEndedTrial(trial, sectionTrialIndex, totalPhase2) {
                 sublist:             sublistNumber,
                 random_seed:         randomSeed,
                 trial_type:          'open_ended',
-                trial_number:        trial.trial_number,
+                trial_number:        trialNumber,
+                trial_list_index:    trial.trial_number,
                 condition:           'open_ended',
                 section_trial_index: sectionTrialIndex + 1,
                 passage_id:          trial.passage_id,
@@ -802,8 +804,9 @@ async function createTimeline() {
 
     // --- Section 1: baseline trials (some_masked + most_masked, shuffled) ---
     const totalBaseline = baselineTrialData.length;
+    let globalTrialNum = 1;
     baselineTrialData.forEach((trial, i) => {
-        timeline.push(createBaselineTrial(trial, i, totalBaseline));
+        timeline.push(createBaselineTrial(trial, i, totalBaseline, globalTrialNum++));
         timeline.push(createGuessInputTrial());
         timeline.push(createConfidenceRatingTrial());
         timeline.push(createFeedbackTrial(trial));
@@ -817,7 +820,7 @@ async function createTimeline() {
     // --- Section 2: open-ended passage trials ---
     const totalPhase2 = phase2TrialData.length;
     phase2TrialData.forEach((trial, i) => {
-        timeline.push(createOpenEndedTrial(trial, i, totalPhase2));
+        timeline.push(createOpenEndedTrial(trial, i, totalPhase2, globalTrialNum++));
     });
 
     // --- Saving screen + data pipe save ---
