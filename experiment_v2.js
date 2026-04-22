@@ -826,7 +826,8 @@ async function createTimeline() {
     timeline.push({
         type: jsPsychPipe,
         action: 'save',
-        experiment_id: 'PYSjeESL3lfq', 
+        experiment_id: 'PYSjeESL3lfq',
+        filename: `${subjCode}.csv`,
         data_string: () => {
             console.log(`Saving ${consolidatedTrials.length} trials...`);
             if (consolidatedTrials.length > 0) {
