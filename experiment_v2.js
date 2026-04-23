@@ -541,7 +541,7 @@ function createGuessInputTrial() {
         }],
         on_load: function () {
             firstKeystrokeTime = null;
-            const input     = document.querySelector('input[name="target_word_guess"], textarea[name="target_word_guess"]');
+            const input     = document.querySelector('[data-name="target_word_guess"]');
             const submitBtn = document.querySelector('input[type="submit"].jspsych-btn');
 
             if (submitBtn) submitBtn.disabled = true;
@@ -688,8 +688,7 @@ const baselineInstructions1 = {
             see will give you context clues.</p>
             <p><strong>Important:</strong> The nonsense words are completely random —
             their spelling and sound have <em>no relationship</em> to the real English
-            words they replaced. Do not try to decode them; focus on the words you
-            <em>can</em> read.</p>
+            words they replaced. 
             <p>Your job:</p>
             <ol>
                 <li>Read the passage carefully.</li>
