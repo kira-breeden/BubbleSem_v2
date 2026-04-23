@@ -785,19 +785,16 @@ const phase2Instructions1 = {
         <div style="max-width: 650px; margin: 0 auto; text-align: left;">
             <h2>Part 2 Instructions</h2>
             <p>In this part you will read passages where <strong>most words have been
-            replaced with nonsense</strong>. Only common function words like
-            <em>the</em>, <em>a</em>, <em>and</em>, <em>in</em>, etc. remain as real
-            English words.</p>
+            replaced with nonsense</strong>. 
             <p>After reading each passage you will answer:</p>
             <p style="margin: 16px 30px; font-size: 17px;">
                 <em>"What do you think this passage is about?"</em>
             </p>
-            <p>We know most of the words are unreadable — that is intentional. Use the
-            function words, grammar, and overall structure to make your best guess at
-            the meaning. Write a few sentences. There are no right or wrong answers.</p>
+            <p>We know this might seem pretty difficult with most of words masked with nonsense. 
+            But, there are no right or wrong answers! Do your best to understand and make a guess 
+            about what the passage is about.</p>
             <p><strong>Important:</strong> the nonsense words are randomly assigned
-            and are not secretly similar to real words, so do not try to decode them
-            letter by letter — focus on the structure of the text.</p>
+            and are not secretly related to the real words.</p>
             <p><em>Press any key to see examples</em></p>
         </div>
     `
