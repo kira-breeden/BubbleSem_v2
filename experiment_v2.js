@@ -268,11 +268,11 @@ async function loadAllTrialData() {
 
 const PRACTICE_TRIAL_DATA = [
     {
-        passageHtml: `The children kicked the <span class="word target">blorf</span> across the field. It soared high through the air.`,
+        passageHtml: `The zirps kicked the <span class="word target">blorf</span> across the scrempf. It glashed high prof the deek.`,
         targetWord: 'ball',
     },
     {
-        passageHtml: `She sat down at the table and opened her <span class="word target">glorp</span>. She began to read quietly.`,
+        passageHtml: `She zop dake at the glimp and opened her <span class="word target">glorp</span>. She began to zap quietly.`,
         targetWord: 'book',
     },
 ];
@@ -283,7 +283,7 @@ const ATTENTION_CHECK_DATA = [
         targetWord: 'cat',
     },
     {
-        passageHtml: `She turned on the kitchen <span class="word target">glorp</span> and looked in the empty refrigerator. It was very bright in the room.`,
+        passageHtml: `She turned on the kitchen <span class="word target">glorp</span> to fill the pot with water. The sound of the cool tap water filling the pot echoed aorund the kitchen.`,
         targetWord: 'light',
     },
 ];
@@ -739,8 +739,8 @@ const practiceInstructions = {
             <h2>Let's Practice</h2>
             <p>Before we begin, let's do <strong>2 practice trials</strong> so you can
             get comfortable with the task.</p>
-            <p>Remember: the bolded nonsense word is what you're guessing. Use the
-            real words around it as clues.</p>
+            <p>Remember: the bolded nonsense word is what you're guessing. Some words will be masked 
+            and some won't but try your best to use all the context available to you to guess the meaning.</p>
             <p><em>Press any key to start the practice</em></p>
         </div>
     `
