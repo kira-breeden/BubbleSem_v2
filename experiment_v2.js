@@ -33,6 +33,7 @@ let phase2TrialData   = [];
 let trialSequenceData = {};   // accumulates data across a trial's screens
 let consolidatedTrials = [];  // all saved trial rows
 let startTime = null;
+let firstKeystrokeTime = null;  // time from passage appearing to first keypress in guess/response box
 
 // Words that are always shown as real (never masked)
 const ARTICLES = ['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at',
@@ -263,6 +264,67 @@ async function loadAllTrialData() {
     console.log(`Phase 2 trials:  ${phase2TrialData.length}`);
 }
 
+// ===== HARDCODED PRACTICE + ATTENTION CHECK TRIALS =====
+
+const PRACTICE_TRIAL_DATA = [
+    {
+        passageHtml: `The children kicked the <span class="word target">blorf</span> across the field. It soared high through the air.`,
+        targetWord: 'ball',
+    },
+    {
+        passageHtml: `She sat down at the table and opened her <span class="word target">glorp</span>. She began to read quietly.`,
+        targetWord: 'book',
+    },
+];
+
+const ATTENTION_CHECK_DATA = [
+    {
+        passageHtml: `The dog barked loudly at the strange <span class="word target">blorf</span> across the street. Everyone on the block could hear it.`,
+        targetWord: 'cat',
+    },
+    {
+        passageHtml: `She turned on the kitchen <span class="word target">glorp</span> and looked in the empty refrigerator. It was very bright in the room.`,
+        targetWord: 'light',
+    },
+];
+
+function createHardcodedTrial(passageHtml, targetWord, trialType, trialNumber) {
+    return {
+        type: jsPsychHtmlButtonResponse,
+        stimulus: function () {
+            startTime = Date.now();
+            firstKeystrokeTime = null;
+            trialSequenceData = {
+                subjCode,
+                sublist:     sublistNumber,
+                random_seed: randomSeed,
+                trial_type:  trialType,
+                trial_number: trialNumber,
+                target_word:  targetWord,
+                condition:    trialType,
+            };
+            return `
+                <div class="sentence-container baseline-passage" id="sentence-container">
+                    ${passageHtml}
+                </div>
+                <div class="controls">
+                    <button class="guess-button" id="guess-btn">Make Guess</button>
+                </div>
+            `;
+        },
+        choices: ['Make Guess'],
+        button_html: '<button class="jspsych-btn" style="display:none;">%choice%</button>',
+        on_load: function () {
+            document.getElementById('guess-btn').addEventListener('click', function () {
+                trialSequenceData.time_before_guess = Date.now() - startTime;
+                jsPsych.finishTrial();
+            });
+        },
+        trial_duration: null,
+        response_ends_trial: false
+    };
+}
+
 // ===== BASELINE TRIAL =====
 // Shows the passage with predetermined masked/unmasked words.
 // No reveal interactivity — participant clicks "Make Guess" when ready.
@@ -431,16 +493,24 @@ function createOpenEndedTrial(trial, sectionTrialIndex, totalPhase2, trialNumber
         choices: ['Submit'],
         button_html: '<button class="jspsych-btn" style="display:none;">%choice%</button>',
         on_load: function () {
+            firstKeystrokeTime = null;
             const textarea  = document.getElementById('open-ended-response');
             const submitBtn = document.getElementById('submit-btn');
+
+            textarea.addEventListener('keydown', function () {
+                if (firstKeystrokeTime === null) {
+                    firstKeystrokeTime = Date.now() - startTime;
+                }
+            }, { once: true });
 
             textarea.addEventListener('input', function () {
                 submitBtn.disabled = textarea.value.trim().length === 0;
             });
 
             submitBtn.addEventListener('click', function () {
-                trialSequenceData.open_ended_response = textarea.value.trim();
-                trialSequenceData.time_before_submit  = Date.now() - startTime;
+                trialSequenceData.open_ended_response     = textarea.value.trim();
+                trialSequenceData.time_before_submit      = Date.now() - startTime;
+                trialSequenceData.time_to_first_keystroke = firstKeystrokeTime;
                 consolidatedTrials.push({ ...trialSequenceData });
                 console.log('Phase 2 trial saved:', trialSequenceData);
                 jsPsych.finishTrial();
@@ -469,9 +539,29 @@ function createGuessInputTrial() {
             rows: 1,
             columns: 40
         }],
+        on_load: function () {
+            firstKeystrokeTime = null;
+            const input     = document.querySelector('input[name="target_word_guess"], textarea[name="target_word_guess"]');
+            const submitBtn = document.querySelector('input[type="submit"].jspsych-btn');
+
+            if (submitBtn) submitBtn.disabled = true;
+
+            if (input) {
+                input.addEventListener('keydown', function () {
+                    if (firstKeystrokeTime === null) {
+                        firstKeystrokeTime = Date.now() - startTime;
+                    }
+                }, { once: true });
+
+                input.addEventListener('input', function () {
+                    if (submitBtn) submitBtn.disabled = input.value.trim().length === 0;
+                });
+            }
+        },
         on_finish: function (data) {
-            trialSequenceData.guess    = data.response.target_word_guess;
-            trialSequenceData.rt_guess = data.rt;
+            trialSequenceData.guess                  = data.response.target_word_guess;
+            trialSequenceData.rt_guess               = data.rt;
+            trialSequenceData.time_to_first_keystroke = firstKeystrokeTime;
         }
     };
 }
@@ -596,6 +686,10 @@ const baselineInstructions1 = {
             <p>In this part you will see passages where <strong>some words have been
             replaced with made-up nonsense words</strong>. The real words you can still
             see will give you context clues.</p>
+            <p><strong>Important:</strong> The nonsense words are completely random —
+            their spelling and sound have <em>no relationship</em> to the real English
+            words they replaced. Do not try to decode them; focus on the words you
+            <em>can</em> read.</p>
             <p>Your job:</p>
             <ol>
                 <li>Read the passage carefully.</li>
@@ -605,6 +699,11 @@ const baselineInstructions1 = {
                 <li>Rate your confidence.</li>
                 <li>You will see the correct answer before moving on.</li>
             </ol>
+            <p style="margin-top: 18px; padding: 12px 16px; background: #fff8e1;
+                      border-left: 4px solid #f9a825; border-radius: 3px;">
+                <strong>Please do not use AI tools or search engines during this
+                experiment.</strong> We are interested in <em>your</em> responses.
+            </p>
             <p><em>Press any key to continue</em></p>
         </div>
     `
@@ -627,6 +726,22 @@ const baselineInstructions2 = {
             specificity.</p>
             <p><strong>Please use ONE WORD guesses only.</strong></p>
             <p><em>Press any key to start Part 1</em></p>
+        </div>
+    `
+};
+
+// --- Practice trial instructions ---
+
+const practiceInstructions = {
+    type: jsPsychHtmlKeyboardResponse,
+    stimulus: `
+        <div style="max-width: 600px; margin: 0 auto; text-align: left;">
+            <h2>Let's Practice</h2>
+            <p>Before we begin, let's do <strong>2 practice trials</strong> so you can
+            get comfortable with the task.</p>
+            <p>Remember: the bolded nonsense word is what you're guessing. Use the
+            real words around it as clues.</p>
+            <p><em>Press any key to start the practice</em></p>
         </div>
     `
 };
@@ -703,16 +818,30 @@ const phase2Instructions2 = {
                 ${PHASE2_EXAMPLE_PASSAGE}
             </div>
 
-            <p>Below are examples of <strong>good</strong> and <strong>bad</strong>
-            responses to that passage.</p>
+            <p>Below are examples of <strong>amazing</strong>, <strong>acceptable</strong>,
+            and <strong>bad</strong> responses to that passage.</p>
+
+            <div style="background: #e8f5e9; border-left: 4px solid #1b5e20;
+                        padding: 14px 18px; margin: 14px 0; border-radius: 3px;">
+                <p style="margin: 0 0 6px 0; font-weight: bold; color: #1b5e20;">
+                    Amazing response
+                </p>
+                <p style="margin: 0;">
+                    "Someone is doing a cooking or how-to demonstration, going through
+                    steps of a process and making corrections along the way. They keep
+                    restarting and emphasizing getting the right technique down,
+                    mentioning names of people or things involved, and wrapping up by
+                    noting they've discussed this topic before."
+                </p>
+            </div>
 
             <div style="background: #f1f8f1; border-left: 4px solid #2e7d32;
                         padding: 14px 18px; margin: 14px 0; border-radius: 3px;">
                 <p style="margin: 0 0 6px 0; font-weight: bold; color: #2e7d32;">
-                    Good response
+                    Acceptable response
                 </p>
                 <p style="margin: 0;">
-                    "The speaker is walking someone through a process or set of instructions, 
+                    "The speaker is walking someone through a process or set of instructions,
                     emphasizing how to perform actions correctly and what to watch out for."
                 </p>
             </div>
@@ -720,10 +849,10 @@ const phase2Instructions2 = {
             <div style="background: #f1f8f1; border-left: 4px solid #2e7d32;
                         padding: 14px 18px; margin: 14px 0; border-radius: 3px;">
                 <p style="margin: 0 0 6px 0; font-weight: bold; color: #2e7d32;">
-                    Good response
+                    Acceptable response
                 </p>
                 <p style="margin: 0;">
-                    "A person talking to themselves about something they're trying 
+                    "A person talking to themselves about something they're trying
                     to convince themselves they're sure of (they're not)."
                 </p>
             </div>
@@ -794,17 +923,41 @@ async function createTimeline() {
         consent,
         welcome,
         baselineInstructions1,
-        baselineInstructions2
+        baselineInstructions2,
+        practiceInstructions,
     ];
 
-    // --- Section 1: baseline trials (some_masked + most_masked, shuffled) ---
+    // --- Practice trials ---
+    PRACTICE_TRIAL_DATA.forEach((p, i) => {
+        timeline.push(createHardcodedTrial(p.passageHtml, p.targetWord, 'practice', `P${i + 1}`));
+        timeline.push(createGuessInputTrial());
+        timeline.push(createConfidenceRatingTrial());
+        timeline.push(createFeedbackTrial({ target_word: p.targetWord }));
+    });
+
+    // --- Section 1: baseline trials with attention checks at ~1/3 and ~2/3 ---
     const totalBaseline = baselineTrialData.length;
     let globalTrialNum = 1;
+    let attnCheckIdx = 0;
+    const attnInsertAfter = new Set([
+        Math.floor(totalBaseline / 3) - 1,
+        Math.floor(2 * totalBaseline / 3) - 1,
+    ]);
+
     baselineTrialData.forEach((trial, i) => {
         timeline.push(createBaselineTrial(trial, i, totalBaseline, globalTrialNum++));
         timeline.push(createGuessInputTrial());
         timeline.push(createConfidenceRatingTrial());
         timeline.push(createFeedbackTrial(trial));
+
+        if (attnInsertAfter.has(i) && attnCheckIdx < ATTENTION_CHECK_DATA.length) {
+            const check = ATTENTION_CHECK_DATA[attnCheckIdx];
+            timeline.push(createHardcodedTrial(check.passageHtml, check.targetWord, 'attention_check', `AC${attnCheckIdx + 1}`));
+            timeline.push(createGuessInputTrial());
+            timeline.push(createConfidenceRatingTrial());
+            timeline.push(createFeedbackTrial({ target_word: check.targetWord }));
+            attnCheckIdx++;
+        }
     });
 
     // --- Transition ---
