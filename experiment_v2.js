@@ -927,8 +927,9 @@ async function createTimeline() {
     ];
 
     // --- Practice trials ---
-    PRACTICE_TRIAL_DATA.forEach((p, i) => {
-        timeline.push(createHardcodedTrial(p.passageHtml, p.targetWord, 'practice', `P${i + 1}`));
+    let globalTrialNum = 1;
+    PRACTICE_TRIAL_DATA.forEach((p) => {
+        timeline.push(createHardcodedTrial(p.passageHtml, p.targetWord, 'practice', globalTrialNum++));
         timeline.push(createGuessInputTrial());
         timeline.push(createConfidenceRatingTrial());
         timeline.push(createFeedbackTrial({ target_word: p.targetWord }));
@@ -938,7 +939,6 @@ async function createTimeline() {
 
     // --- Section 1: baseline trials with attention checks at ~1/3 and ~2/3 ---
     const totalBaseline = baselineTrialData.length;
-    let globalTrialNum = 1;
     let attnCheckIdx = 0;
     const attnInsertAfter = new Set([
         Math.floor(totalBaseline / 3) - 1,
@@ -953,7 +953,7 @@ async function createTimeline() {
 
         if (attnInsertAfter.has(i) && attnCheckIdx < ATTENTION_CHECK_DATA.length) {
             const check = ATTENTION_CHECK_DATA[attnCheckIdx];
-            timeline.push(createHardcodedTrial(check.passageHtml, check.targetWord, 'attention_check', `AC${attnCheckIdx + 1}`));
+            timeline.push(createHardcodedTrial(check.passageHtml, check.targetWord, 'attention_check', globalTrialNum++));
             timeline.push(createGuessInputTrial());
             timeline.push(createConfidenceRatingTrial());
             timeline.push(createFeedbackTrial({ target_word: check.targetWord }));
