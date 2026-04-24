@@ -202,7 +202,7 @@ async function assignSublist() {
         const resp = await fetch('https://pipe.jspsych.org/api/condition/', {
             method:  'POST',
             headers: { 'Content-Type': 'application/json' },
-            body:    JSON.stringify({ experiment_id: EXPERIMENT_ID })
+            body:    JSON.stringify({ experimentID: EXPERIMENT_ID })
         });
         console.log('DataPipe response status:', resp.status);
         if (!resp.ok) {
