@@ -682,28 +682,18 @@ const baselineInstructions1 = {
     type: jsPsychHtmlKeyboardResponse,
     stimulus: `
         <div style="max-width: 600px; margin: 0 auto; text-align: left;">
-            <h2>Part 1 Instructions</h2>
-            <p>In this part you will see passages where <strong>some words have been
-            replaced with made-up nonsense words</strong>. The real words you can still
-            see will give you context clues.</p>
-            <p><strong>Important:</strong> The nonsense words are completely random —
-            their spelling and sound have <em>no relationship</em> to the real English
-            words they replaced. 
-            <p>Your job:</p>
+            <h2>Instructions</h2>
+            <p>On each trial:</p>
             <ol>
-                <li>Read the passage carefully.</li>
-                <li>Try to figure out what the <strong>bolded word</strong> means.</li>
-                <li>When you are ready to guess, click <strong>Make Guess</strong>.</li>
-                <li>Type your best ONE-WORD guess.</li>
-                <li>Rate your confidence.</li>
-                <li>You will see the correct answer before moving on.</li>
+                <li>You'll see a sentence with one <strong>bolded word</strong> - this is your target word to guess</li>
+                <li>Read the sentence carefully to understand the context</li>
+                <li>When you think you know the meaning of the bolded word, click "Make Guess"</li>
+                <li>Type your guess for the bolded word</li>
+                <li>Rate your confidence in your guess</li>
+                <li>You'll see feedback showing the correct answer</li>
             </ol>
-            <p style="margin-top: 18px; padding: 12px 16px; background: #fff8e1;
-                      border-left: 4px solid #f9a825; border-radius: 3px;">
-                <strong>Please do not use AI tools or search engines during this
-                experiment.</strong> We are interested in <em>your</em> responses.
-            </p>
-            <p><em>Press any key to continue</em></p>
+            <p><strong>Important: Try to be as specific as possible in your guesses. Your guess should be ONE WORD!</strong></p>
+            <p><em>Press any key to start</em></p>
         </div>
     `
 };
@@ -712,19 +702,14 @@ const baselineInstructions2 = {
     type: jsPsychHtmlKeyboardResponse,
     stimulus: `
         <div style="max-width: 600px; margin: 0 auto; text-align: left;">
-            <h2>Part 1 — Tips</h2>
-            <p>Some passages will have more nonsense words than others — that is intentional.</p>
-            <p>Use every real word you can see as a clue. Even if you are unsure, make your
-            best one-word guess before moving on.</p>
-            <p><strong>Example:</strong></p>
+            <h2>When are you ready to guess?</h2>
+            <p><strong>This will sometimes be quite difficult, but just do your best!</strong></p>
+            <p>For example, you might see something like this:</p>
             <p style="margin-left: 20px; font-style: italic;">
-                "The glorp gleamed in the deng morning <strong>glosh</strong>."
+                "The glorp tafed in the deng zirp <strong>glosh</strong>."
             </p>
-            <p>You might guess <em>sun</em>, <em>light</em>, or <em>air</em> — all
-            reasonable one-word guesses based on context. That is the right level of
-            specificity.</p>
-            <p><strong>Please use ONE WORD guesses only.</strong></p>
-            <p><em>Press any key to start Part 1</em></p>
+            <p>Take some time to think about what "glosh" might mean and once you have your best ONE WORD GUESS, you can move forward.</p>
+            <p style="margin-top: 30px;"><em>Press any key to continue</em></p>
         </div>
     `
 };
@@ -741,6 +726,20 @@ const practiceInstructions = {
             <p>Remember: the bolded nonsense word is what you're guessing. Some words will be masked 
             and some won't but try your best to use all the context available to you to guess the meaning.</p>
             <p><em>Press any key to start the practice</em></p>
+        </div>
+    `
+};
+
+// --- Post-practice transition ---
+
+const practiceCompleteScreen = {
+    type: jsPsychHtmlKeyboardResponse,
+    stimulus: `
+        <div style="max-width: 600px; margin: 0 auto; text-align: left;">
+            <h2>Practice complete!</h2>
+            <p><strong>Final Reminder: Please use ONE WORD GUESSES!</strong></p>
+            <p><strong>Some will be harder than others, so just do your best and take your time!</strong></p>
+            <p><em>Press any key to start Part 1</em></p>
         </div>
     `
 };
@@ -930,6 +929,8 @@ async function createTimeline() {
         timeline.push(createConfidenceRatingTrial());
         timeline.push(createFeedbackTrial({ target_word: p.targetWord }));
     });
+
+    timeline.push(practiceCompleteScreen);
 
     // --- Section 1: baseline trials with attention checks at ~1/3 and ~2/3 ---
     const totalBaseline = baselineTrialData.length;
