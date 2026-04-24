@@ -279,12 +279,12 @@ const PRACTICE_TRIAL_DATA = [
 
 const ATTENTION_CHECK_DATA = [
     {
-        passageHtml: `The dog barked loudly at the strange <span class="word target">blorf</span> across the street. Everyone on the block could hear it.`,
+        passageHtml: `The dog barked loudly at the <span class="word target">blorf</span> across the street. Everyone on the block could hear it.`,
         targetWord: 'cat',
     },
     {
         passageHtml: `She turned on the kitchen <span class="word target">glorp</span> to fill the pot with water. The sound of the cool tap water filling the pot echoed aorund the kitchen.`,
-        targetWord: 'light',
+        targetWord: 'sink',
     },
 ];
 
