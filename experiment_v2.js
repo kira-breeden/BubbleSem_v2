@@ -682,7 +682,10 @@ const baselineInstructions1 = {
     type: jsPsychHtmlKeyboardResponse,
     stimulus: `
         <div style="max-width: 600px; margin: 0 auto; text-align: left;">
-            <h2>Instructions</h2>
+            <h2>Part 1 Instructions</h2>
+            <p>In this task you will read a passage of text and try to guess the meaning of a word in bold. The majority of 
+            the words in the passage will be nonsense words. These words are totally random and have no relationship to the 
+            real English words they have replaced. </p>
             <p>On each trial:</p>
             <ol>
                 <li>You'll see a sentence with one <strong>bolded word</strong> - this is your target word to guess</li>
@@ -693,8 +696,8 @@ const baselineInstructions1 = {
                 <li>You'll see feedback showing the correct answer</li>
             </ol>
             <p><strong>Important: Try to be as specific as possible in your guesses. Your guess should be ONE WORD!</strong></p>
-            <p><em>Press any key to start</em></p>
-        </div>
+            <p><em>Press any key to move on to the next page </em></p>
+        </div> 
     `
 };
 
@@ -783,7 +786,7 @@ const phase2Instructions1 = {
     stimulus: `
         <div style="max-width: 650px; margin: 0 auto; text-align: left;">
             <h2>Part 2 Instructions</h2>
-            <p>In this part you will read passages where <strong>most words have been
+            <p>In this part you will read longer passages where <strong>most words have been
             replaced with nonsense</strong>. 
             <p>After reading each passage you will answer:</p>
             <p style="margin: 16px 30px; font-size: 17px;">
@@ -813,13 +816,14 @@ const phase2Instructions2 = {
                 ${PHASE2_EXAMPLE_PASSAGE}
             </div>
 
-            <p>Below are examples of <strong>amazing</strong>, <strong>acceptable</strong>,
-            and <strong>bad</strong> responses to that passage.</p>
+            <p>Remember, you will be asked what you think this passage is about. 
+            Below are examples of <strong>amazing</strong>, <strong>acceptable</strong>,
+            and <strong>bad</strong> responses.</p>
 
             <div style="background: #e8f5e9; border-left: 4px solid #1b5e20;
                         padding: 14px 18px; margin: 14px 0; border-radius: 3px;">
                 <p style="margin: 0 0 6px 0; font-weight: bold; color: #1b5e20;">
-                    Amazing response
+                    Amazing response -- detailed and specific
                 </p>
                 <p style="margin: 0;">
                     "Someone is doing a cooking or how-to demonstration, going through
@@ -872,8 +876,8 @@ const phase2Instructions2 = {
                 </p>
             </div>
 
-            <p style="margin-top: 20px;">Do your best — even an uncertain interpretation
-            is valuable to us.</p>
+            <p style="margin-top: 20px;">Do your best with the information you have!
+            Even an uncertain interpretation is extremely valuable to us.</p>
             <p><em>Press any key to start Part 2</em></p>
         </div>
     `
@@ -1004,11 +1008,11 @@ async function createTimeline() {
 
             return `
                 <div style="text-align: center; padding: 50px;">
-                    <h2>Thank you!</h2>
+                    <h2>Thank you! You have one more step! </h2>
                     <p style="font-size: 18px; margin: 30px 0;">
                         Your data has been saved successfully.
                     </p>
-                    <p style="font-size: 16px; margin: 40px 0;">
+                    <p style="font-size: 18px; margin: 30px 0;">
                         You will be redirected to the final survey shortly...
                     </p>
                     <p style="font-size: 14px; color: #666; margin-top: 40px;">
