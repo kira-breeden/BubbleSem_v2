@@ -334,40 +334,16 @@ function createBaselineTrial(trial, sectionTrialIndex, totalBaseline, trialNumbe
     const jabberSentence = trial.jabber_passage  || '';
     const realTokens     = tokenizeSentence(realSentence);
     const jabberTokens   = tokenizeSentence(jabberSentence);
-    // Use jabberTokens for targetTokenIdx — the render loop iterates jabberTokens,
-    // so the index must come from the same tokenization.
     const targetTokenIdx = wordPosToTokenIndex(jabberTokens, trial.target_word_position);
     const maskingLevel   = trial.condition || 'some_masked';
 
-    // Words that are always unmasked in every condition (specified in the CSV).
-    const alwaysUnmaskedWordPositions = parseJSONColumn(trial.unmasked_word_indices);
-    const alwaysUnmaskedTokenIdxSet = new Set(
-        alwaysUnmaskedWordPositions
+    // Unmasked word positions come directly from the pre-computed trial list.
+    const unmaskedWordPositions = parseJSONColumn(trial.unmasked_word_indices);
+    const unmaskedTokenIdxSet = new Set(
+        unmaskedWordPositions
             .map(pos => wordPosToTokenIndex(jabberTokens, pos))
             .filter(i => i >= 0)
     );
-
-    // Revealable pool: maskable words not already in the always-unmasked set.
-    // some_masked → randomly unmask 20% of pool; most_masked → 40%.
-    const revealFraction = (maskingLevel === 'most_masked') ? 0.40 : 0.20;
-    const allMaskableTokenIndices = getMaskableTokenIndices(jabberTokens, realTokens, targetTokenIdx);
-    const revealablePool = allMaskableTokenIndices.filter(i => !alwaysUnmaskedTokenIdxSet.has(i));
-    const nToReveal = Math.round(revealablePool.length * revealFraction);
-
-    // Derive a per-trial seed from the global seed + trial index so each trial is
-    // independently reproducible but all trials are tied to the participant's session.
-    const trialRng = new SeededRandom(randomSeed + sectionTrialIndex * 1000);
-    const shuffledPool = trialRng.shuffle(revealablePool);
-    const randomlyUnmaskedTokenIdxSet = new Set(shuffledPool.slice(0, nToReveal));
-
-    // Combined set: always-unmasked + randomly sampled
-    const unmaskedTokenIdxSet = new Set([...alwaysUnmaskedTokenIdxSet, ...randomlyUnmaskedTokenIdxSet]);
-
-    // Record both sets of word positions (0-indexed, punct-excluded) for data output.
-    const tokenToWordPos = buildTokenToWordPosMap(jabberTokens);
-    const randomlyUnmaskedWordPositions = shuffledPool.slice(0, nToReveal)
-        .map(tokIdx => tokenToWordPos.get(tokIdx))
-        .filter(pos => pos !== undefined);
 
     return {
         type: jsPsychHtmlButtonResponse,
@@ -389,8 +365,7 @@ function createBaselineTrial(trial, sectionTrialIndex, totalBaseline, trialNumbe
                 target_probability:     trial.target_probability,
                 real_passage:           realSentence,
                 jabber_passage:         jabberSentence,
-                always_unmasked_word_indices:   JSON.stringify(alwaysUnmaskedWordPositions),
-                randomly_unmasked_word_indices: JSON.stringify(randomlyUnmaskedWordPositions),
+                unmasked_word_indices:  JSON.stringify(unmaskedWordPositions),
             };
 
             let html = `

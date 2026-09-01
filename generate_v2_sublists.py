@@ -23,8 +23,8 @@ Required columns (pre-existing):
     target_pos
 
 Columns to add before running (placeholders added automatically if absent):
-    unmasked_word_indices_some  -- JSON list of word positions to reveal in some_masked (20%)
-    unmasked_word_indices_most  -- JSON list of word positions to reveal in most_masked (40%)
+    unmasked_word_indices_some  -- JSON list of word positions to reveal in some_masked (40%)
+    unmasked_word_indices_most  -- JSON list of word positions to reveal in most_masked (20%)
 
 Output
 ------
@@ -35,8 +35,8 @@ trial_lists/sublist_1.csv ... trial_lists/sublist_8.csv
              target_pos, og_passage_seed_number
 
     All 20 rows per sublist have phase='baseline'.
-    10 rows have masking_level='some'  (20% of maskable words revealed)
-    10 rows have masking_level='most'  (40% of maskable words revealed)
+    10 rows have masking_level='some'  (40% of greedy-trajectory words revealed)
+    10 rows have masking_level='most'  (20% of greedy-trajectory words revealed)
 
 Design
 ------
@@ -156,10 +156,17 @@ if 'target_word_position' not in df.columns or df['target_word_position'].isna()
                   f'passage: {row["passage_variant"][:80]}')
 
 # ── Load greedy trajectories and compute unmasked indices ─────────────────────
+# Words are pre-revealed from the START of the (uncapped) greedy trajectory,
+# most informative first. Matches the case study's condition_trajectories.py:
+#   some_masked -> top 40% of the trajectory revealed (more context shown)
+#   most_masked -> top 20% of the trajectory revealed (fewer words shown)
 
 GREEDY_CSV = 'passage_greedy_trajectories.csv'
 print(f'Loading {GREEDY_CSV}...')
 greedy_df = pd.read_csv(GREEDY_CSV, usecols=['real_passage', 'greedy_words', 'greedy_indices'])
+
+SOME_MASKED_PCT = 0.40   # some_masked: 40% revealed  -> some words remain masked
+MOST_MASKED_PCT = 0.20   # most_masked: 20% revealed  -> most words remain masked
 
 def _first_pct(indices_json, pct):
     """Return first pct% (by count) of a JSON list of indices, as a JSON string."""
@@ -168,10 +175,10 @@ def _first_pct(indices_json, pct):
     return json.dumps(indices[:n])
 
 greedy_df['unmasked_word_indices_some'] = greedy_df['greedy_indices'].apply(
-    lambda x: _first_pct(x, 0.20)
+    lambda x: _first_pct(x, SOME_MASKED_PCT)
 )
 greedy_df['unmasked_word_indices_most'] = greedy_df['greedy_indices'].apply(
-    lambda x: _first_pct(x, 0.40)
+    lambda x: _first_pct(x, MOST_MASKED_PCT)
 )
 
 df = df.merge(
