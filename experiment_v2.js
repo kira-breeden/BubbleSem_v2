@@ -1,39 +1,57 @@
 // ============================================================
-// BubbleSem v2 — Two-Section Experiment
+// BubbleSem v2 — Three-Part Experiment
 //
-// Section 1 (Baseline): some_masked + most_masked trials shuffled
-//   - All 20 target words shown with 20% or 40% of nonce words revealed
+// Part 1 (Baseline): some_masked + most_masked trials shuffled
+//   - 10 target words shown with 20% or 40% of revealable words revealed
 //   - No reveal interactivity; participant makes guess when ready
 //
-// Section 2 (Open-Ended): longer passages loaded from open_ended_passages.csv
+// Part 2 (Sampling): predetermined greedy-trajectory reveal
+//   - The other 10 target words start fully masked
+//   - "Reveal Next Word" reveals words one at a time in greedy-trajectory
+//     order (most informative first) — the participant cannot choose which
+//     word is revealed next, only when to stop and guess
+//   - Points system: each trial starts at 100 points; each reveal costs
+//     100 / (trajectory length for that passage), so fully revealing a
+//     passage always costs 100 points regardless of passage length
+//
+// Part 3 (Open-Ended): longer passages loaded from open_ended_passages.csv
 //   - Participant reads each passage and answers an open-ended question
 //     about what the passage is about
 //   - Response and timing recorded; no target-word guessing
 //
-// Note: The prior Section 2 (predetermined trajectory reveal with
-//   points system) is preserved in determined_trajectory.js.
+// Every participant sees all 20 target words exactly once (10 in Part 1,
+// 10 in Part 2), rotating through entropy levels so contexts vary in
+// ambiguity across the study.
 //
 // CSV files required:
-//   trial_lists/sublist_X.csv  — 20 Phase 1 baseline trials (varies by sublist)
-//     columns: phase, target_word, passage_variant, jabber_passage,
-//              target_word_position, masking_level, unmasked_word_indices,
-//              entropy, target_probability, ...
-//   open_ended_passages.csv  — Phase 2 longer passages (same for all participants)
+//   trial_lists/sublist_X.csv  — 20 Part 1 + Part 2 trials (varies by sublist)
+//     columns: condition, target_word, real_passage, jabber_passage,
+//              target_word_position, unmasked_word_indices (Part 1),
+//              reveal_order (Part 2), entropy, target_probability, ...
+//   open_ended_passages.csv  — Part 3 passages (same for all participants)
 //     columns: passage_id, longer_passage
 //
 // URL parameters:
-//   sublist=1..8  (default: 1)
+//   sublist=1..16  (default: 1)
 //   subjCode=<string> (default: random ID)
 // ============================================================
 
 // ===== GLOBAL STATE =====
 
-let baselineTrialData = [];
-let phase2TrialData   = [];
+let baselineTrialData  = [];
+let samplingTrialData  = [];
+let openEndedTrialData = [];
 let trialSequenceData = {};   // accumulates data across a trial's screens
 let consolidatedTrials = [];  // all saved trial rows
 let startTime = null;
 let firstKeystrokeTime = null;  // time from passage appearing to first keypress in guess/response box
+
+// Sampling-specific state (reset each sampling trial)
+let revealQueue          = [];  // {wordPos, tokenIdx} entries remaining to reveal
+let revealedTokenIndices = [];  // token indices revealed so far
+let revealClickTimes     = [];  // [{word_position, revealed_word, time_from_start, num_revealed}]
+let trialPoints          = 100;
+let pointsPerReveal      = 0;
 
 // Words that are always shown as real (never masked)
 const ARTICLES = ['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at',
@@ -164,6 +182,16 @@ function getMaskableTokenIndices(jabberTokens, realTokens, targetTokenIdx) {
     return maskable;
 }
 
+// Update the on-screen points counter (sampling trials only).
+function updatePointsDisplay(points) {
+    const el = document.getElementById('points-counter');
+    if (el) {
+        el.textContent = `Points: ${Math.round(points)}`;
+        el.style.color = '#d32f2f';
+        setTimeout(() => { el.style.color = '#333'; }, 300);
+    }
+}
+
 // Convert an array of objects to a CSV string.
 // Headers are the union of all keys across every row so that Phase 1 and
 // Phase 2 columns all appear even though each phase has unique fields.
@@ -185,9 +213,9 @@ function arrayToCSV(data) {
 // ===== CONDITION ASSIGNMENT =====
 
 const EXPERIMENT_ID = 'PYSjeESL3lfq';
-const N_SUBLISTS    = 8;
+const N_SUBLISTS    = 16;
 
-// Returns a sublist number (1–8).
+// Returns a sublist number (1–16).
 // If ?sublist= is in the URL, uses that.
 // Otherwise calls the DataPipe condition assignment API for counterbalanced assignment.
 async function assignSublist() {
@@ -253,15 +281,18 @@ async function loadAllTrialData() {
     const allTrials = await loadCSV(`trial_lists/sublist_${sublistNumber}.csv`);
 
     const baseline  = allTrials.filter(t => t.condition === 'some_masked' || t.condition === 'most_masked');
+    const sampling  = allTrials.filter(t => t.condition === 'sampling');
     const openEnded = allTrials.filter(t => t.condition === 'open_ended');
 
-    // Shuffle each phase independently with seeded RNG
+    // Shuffle each part independently with seeded RNG
     const rng = new SeededRandom(randomSeed);
-    baselineTrialData = rng.shuffle(baseline);
-    phase2TrialData   = rng.shuffle(openEnded);
+    baselineTrialData  = rng.shuffle(baseline);
+    samplingTrialData  = rng.shuffle(sampling);
+    openEndedTrialData = rng.shuffle(openEnded);
 
-    console.log(`Baseline trials: ${baselineTrialData.length}`);
-    console.log(`Phase 2 trials:  ${phase2TrialData.length}`);
+    console.log(`Baseline trials:    ${baselineTrialData.length}`);
+    console.log(`Sampling trials:    ${samplingTrialData.length}`);
+    console.log(`Open-ended trials:  ${openEndedTrialData.length}`);
 }
 
 // ===== HARDCODED PRACTICE + ATTENTION CHECK TRIALS =====
@@ -418,12 +449,161 @@ function createBaselineTrial(trial, sectionTrialIndex, totalBaseline, trialNumbe
     };
 }
 
-// ===== OPEN-ENDED TRIAL (Phase 2) =====
+// ===== SAMPLING TRIAL (Part 2) =====
+// All revealable words start masked. "Reveal Next Word" reveals them one at a
+// time in greedy-trajectory order (most informative first) — the participant
+// cannot choose which word is revealed, only when to stop and guess.
+
+function createSamplingTrial(trial, sectionTrialIndex, totalSampling, trialNumber) {
+    const realSentence   = trial.real_passage    || '';
+    const jabberSentence = trial.jabber_passage  || '';
+    const realTokens     = tokenizeSentence(realSentence);
+    const jabberTokens   = tokenizeSentence(jabberSentence);
+    const targetTokenIdx = wordPosToTokenIndex(jabberTokens, trial.target_word_position);
+
+    // Reveal order comes from the passage's greedy trajectory (word positions,
+    // most informative first). Convert to token indices for DOM manipulation.
+    const revealOrderWordPositions = parseJSONColumn(trial.reveal_order);
+    const revealOrderPairs = revealOrderWordPositions
+        .map(wordPos => ({ wordPos, tokenIdx: wordPosToTokenIndex(jabberTokens, wordPos) }))
+        .filter(({ tokenIdx }) => tokenIdx >= 0 && tokenIdx !== targetTokenIdx);
+
+    // Token-index → word-position reverse map (for saving word positions in output data)
+    const tokenToWordPos = buildTokenToWordPosMap(jabberTokens);
+
+    return {
+        type: jsPsychHtmlButtonResponse,
+        stimulus: function () {
+            startTime            = Date.now();
+            trialPoints          = 100;
+            revealQueue          = [...revealOrderPairs]; // each entry: {wordPos, tokenIdx}
+            revealedTokenIndices = [];
+            revealClickTimes     = [];
+            pointsPerReveal      = revealQueue.length > 0
+                ? Math.round((100 / revealQueue.length) * 100) / 100
+                : 0;
+
+            trialSequenceData = {
+                subjCode:             subjCode,
+                sublist:              sublistNumber,
+                random_seed:          randomSeed,
+                trial_type:           'sampling',
+                trial_number:         trialNumber,
+                trial_list_index:     trial.trial_number,
+                condition:            'sampling',
+                section_trial_index:  sectionTrialIndex + 1,
+                target_word:          trial.target_word,
+                target_word_position: trial.target_word_position,
+                entropy:              trial.entropy,
+                target_probability:   trial.target_probability,
+                real_passage:         realSentence,
+                jabber_passage:       jabberSentence,
+                reveal_order:         JSON.stringify(revealOrderWordPositions),
+                points_per_reveal:    pointsPerReveal,
+            };
+
+            let html = `
+                <div style="position: relative;">
+                    <div class="trial-counter">
+                        Part 2 &mdash; Trial ${sectionTrialIndex + 1} of ${totalSampling}
+                    </div>
+                    <div class="points-counter" id="points-counter">Points: ${trialPoints}</div>
+                    <div class="sentence-container sampling-passage" id="sentence-container">
+            `;
+
+            for (let i = 0; i < jabberTokens.length; i++) {
+                const token = jabberTokens[i];
+
+                if (isPunct(token)) {
+                    html += token;
+                    if (/[.,!?;:]/.test(token) && i < jabberTokens.length - 1) html += ' ';
+                    continue;
+                }
+
+                if (i === targetTokenIdx) {
+                    html += `<span class="word target">${token}</span> `;
+                } else if (isAutoRevealed(jabberTokens[i], realTokens[i])) {
+                    html += `<span class="word">${realTokens[i]}</span> `;
+                } else {
+                    // All other words start masked; id used for DOM update on reveal
+                    html += `<span class="word clickable" id="word-tok-${i}"
+                                   data-real="${realTokens[i]}">${token}</span> `;
+                }
+            }
+
+            html += `
+                    </div>
+                    <div class="controls">
+                        <button class="reveal-button" id="reveal-btn">Reveal Next Word</button>
+                        <button class="guess-button"  id="guess-btn">Make Guess</button>
+                    </div>
+                </div>
+            `;
+
+            return html;
+        },
+        choices: ['Make Guess'],
+        button_html: '<button class="jspsych-btn" style="display:none;">%choice%</button>',
+        on_load: function () {
+            const revealBtn = document.getElementById('reveal-btn');
+            const guessBtn  = document.getElementById('guess-btn');
+
+            if (revealQueue.length === 0) revealBtn.disabled = true;
+
+            revealBtn.addEventListener('click', function () {
+                if (revealQueue.length === 0) return;
+
+                const { wordPos, tokenIdx } = revealQueue.shift();
+                revealedTokenIndices.push(tokenIdx);
+
+                // Deduct points
+                trialPoints = Math.max(0, trialPoints - pointsPerReveal);
+                updatePointsDisplay(trialPoints);
+
+                revealClickTimes.push({
+                    word_position:   wordPos,
+                    revealed_word:   realTokens[tokenIdx],
+                    time_from_start: Date.now() - startTime,
+                    num_revealed:    revealedTokenIndices.length
+                });
+
+                // Update word in DOM
+                const wordEl = document.getElementById(`word-tok-${tokenIdx}`);
+                if (wordEl) {
+                    wordEl.textContent = realTokens[tokenIdx];
+                    wordEl.classList.remove('clickable');
+                    wordEl.classList.add('revealed');
+                }
+
+                if (revealQueue.length === 0) revealBtn.disabled = true;
+            });
+
+            guessBtn.addEventListener('click', function () {
+                // Save word positions (0-indexed, ignoring punctuation) — not token indices
+                const revealedWordPositions = revealedTokenIndices.map(
+                    ti => tokenToWordPos.get(ti)
+                );
+                trialSequenceData.num_words_revealed    = revealedWordPositions.length;
+                trialSequenceData.revealed_word_indices = JSON.stringify(revealedWordPositions);
+                trialSequenceData.revealed_words        =
+                    JSON.stringify(revealedTokenIndices.map(ti => realTokens[ti]));
+                trialSequenceData.click_times           = JSON.stringify(revealClickTimes);
+                trialSequenceData.time_before_guess     = Date.now() - startTime;
+                trialSequenceData.points_remaining      = Math.round(trialPoints * 100) / 100;
+                jsPsych.finishTrial();
+            });
+        },
+        trial_duration: null,
+        response_ends_trial: false
+    };
+}
+
+// ===== OPEN-ENDED TRIAL (Part 3) =====
 // Shows the full real passage and collects an open-ended response
 // about what the participant thinks the passage is about.
 // Response and timing are saved directly here (no separate guess/confidence screens).
 
-function createOpenEndedTrial(trial, sectionTrialIndex, totalPhase2, trialNumber) {
+function createOpenEndedTrial(trial, sectionTrialIndex, totalOpenEnded, trialNumber) {
     const passage = trial.jabber_passage || '';
 
     return {
@@ -651,7 +831,7 @@ const welcome = {
     `
 };
 
-// --- Section 1 instructions ---
+// --- Part 1 instructions ---
 
 const baselineInstructions1 = {
     type: jsPsychHtmlKeyboardResponse,
@@ -722,7 +902,7 @@ const practiceCompleteScreen = {
     `
 };
 
-// --- Transition between sections ---
+// --- Transition between Part 1 and Part 2 ---
 
 const transitionScreen = {
     type: jsPsychHtmlKeyboardResponse,
@@ -735,9 +915,63 @@ const transitionScreen = {
     `
 };
 
-// --- Section 2 instructions ---
+// --- Part 2 instructions ---
 
-const PHASE2_EXAMPLE_PASSAGE = [
+const samplingInstructions1 = {
+    type: jsPsychHtmlKeyboardResponse,
+    stimulus: `
+        <div style="max-width: 600px; margin: 0 auto; text-align: left;">
+            <h2>Part 2 Instructions</h2>
+            <p>In this part, passages start with <strong>all</strong> non-target words
+            replaced by nonsense words. You can reveal the real words one at a time by
+            clicking <strong>Reveal Next Word</strong>.</p>
+            <p>Your job:</p>
+            <ol>
+                <li>Read the passage (initially all nonsense except articles).</li>
+                <li>Click <strong>Reveal Next Word</strong> to reveal another word.
+                    Each revealed word will stay visible.</li>
+                <li>Click <strong>Make Guess</strong> whenever you feel ready — you do not
+                    need to reveal every word first!</li>
+                <li>Type your best ONE-WORD guess and rate your confidence.</li>
+            </ol>
+            <p><em>Press any key to continue</em></p>
+        </div>
+    `
+};
+
+const samplingInstructions2 = {
+    type: jsPsychHtmlKeyboardResponse,
+    stimulus: `
+        <div style="max-width: 600px; margin: 0 auto; text-align: left;">
+            <h2>Part 2 — Scoring</h2>
+            <p>Each trial in Part 2 starts with <strong>100 points</strong>. Every word
+            you reveal costs you some points.</p>
+            <p>Try to guess the target word with as few reveals as possible to keep your
+            score high!</p>
+            <p>You cannot choose which word is revealed next — only when to stop and
+            guess.</p>
+            <p><strong>Please use ONE WORD guesses only.</strong></p>
+            <p><em>Press any key to start Part 2</em></p>
+        </div>
+    `
+};
+
+// --- Transition between Part 2 and Part 3 ---
+
+const transitionScreen2 = {
+    type: jsPsychHtmlKeyboardResponse,
+    stimulus: `
+        <div style="max-width: 600px; margin: 0 auto; text-align: left;">
+            <h2>Great work — Part 2 complete!</h2>
+            <p>Now we will move on to <strong>Part 3</strong>, the final part.</p>
+            <p><em>Press any key to read the Part 3 instructions</em></p>
+        </div>
+    `
+};
+
+// --- Part 3 instructions ---
+
+const OPEN_ENDED_EXAMPLE_PASSAGE = [
     "Ghoc and splync . Splync he had gwob gwob . We 're doing a dwoque neight down .",
     "Knurt sneese to to to dwoque Neight Down dwazz down . It 's scis when you shroosh",
     "the throck wherg about this maunch in and out gheint . Knurt . The prerk wrudd is a",
@@ -756,11 +990,11 @@ const PHASE2_EXAMPLE_PASSAGE = [
     "phiv why Thweil , we 've scuthed about it a thwipe whealt a cralph here. ",
 ].join(' ');
 
-const phase2Instructions1 = {
+const openEndedInstructions1 = {
     type: jsPsychHtmlKeyboardResponse,
     stimulus: `
         <div style="max-width: 650px; margin: 0 auto; text-align: left;">
-            <h2>Part 2 Instructions</h2>
+            <h2>Part 3 Instructions</h2>
             <p>In this part you will read longer passages where <strong>most words have been
             replaced with nonsense</strong>. 
             <p>After reading each passage you will answer:</p>
@@ -777,18 +1011,18 @@ const phase2Instructions1 = {
     `
 };
 
-const phase2Instructions2 = {
+const openEndedInstructions2 = {
     type: jsPsychHtmlKeyboardResponse,
     stimulus: `
         <div style="max-width: 700px; margin: 0 auto; text-align: left;">
-            <h2>Part 2 — Examples</h2>
+            <h2>Part 3 — Examples</h2>
 
             <p>Here is an example of what a passage will look like:</p>
 
             <div style="background: #fafafa; border: 1px solid #ddd; border-radius: 6px;
                         padding: 18px 22px; margin: 14px 0 24px 0;
                         font-size: 18px; line-height: 1.8;">
-                ${PHASE2_EXAMPLE_PASSAGE}
+                ${OPEN_ENDED_EXAMPLE_PASSAGE}
             </div>
 
             <p>Remember, you will be asked what you think this passage is about. 
@@ -853,7 +1087,7 @@ const phase2Instructions2 = {
 
             <p style="margin-top: 20px;">Do your best with the information you have!
             Even an uncertain interpretation is extremely valuable to us.</p>
-            <p><em>Press any key to start Part 2</em></p>
+            <p><em>Press any key to start Part 3</em></p>
         </div>
     `
 };
@@ -912,7 +1146,7 @@ async function createTimeline() {
 
     timeline.push(practiceCompleteScreen);
 
-    // --- Section 1: baseline trials with attention checks at ~1/3 and ~2/3 ---
+    // --- Part 1: baseline trials with attention checks at ~1/3 and ~2/3 ---
     const totalBaseline = baselineTrialData.length;
     let attnCheckIdx = 0;
     const attnInsertAfter = new Set([
@@ -936,15 +1170,29 @@ async function createTimeline() {
         }
     });
 
-    // --- Transition ---
+    // --- Transition to Part 2 ---
     timeline.push(transitionScreen);
-    timeline.push(phase2Instructions1);
-    timeline.push(phase2Instructions2);
+    timeline.push(samplingInstructions1);
+    timeline.push(samplingInstructions2);
 
-    // --- Section 2: open-ended passage trials ---
-    const totalPhase2 = phase2TrialData.length;
-    phase2TrialData.forEach((trial, i) => {
-        timeline.push(createOpenEndedTrial(trial, i, totalPhase2, globalTrialNum++));
+    // --- Part 2: sampling trials ---
+    const totalSampling = samplingTrialData.length;
+    samplingTrialData.forEach((trial, i) => {
+        timeline.push(createSamplingTrial(trial, i, totalSampling, globalTrialNum++));
+        timeline.push(createGuessInputTrial());
+        timeline.push(createConfidenceRatingTrial());
+        timeline.push(createFeedbackTrial(trial));
+    });
+
+    // --- Transition to Part 3 ---
+    timeline.push(transitionScreen2);
+    timeline.push(openEndedInstructions1);
+    timeline.push(openEndedInstructions2);
+
+    // --- Part 3: open-ended passage trials ---
+    const totalOpenEnded = openEndedTrialData.length;
+    openEndedTrialData.forEach((trial, i) => {
+        timeline.push(createOpenEndedTrial(trial, i, totalOpenEnded, globalTrialNum++));
     });
 
     // --- Saving screen + data pipe save ---

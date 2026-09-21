@@ -1,9 +1,10 @@
 """
 generate_v2_sublists.py
 =======================
-Generates Phase 1 (baseline) trial-list CSV files for BubbleSem v2.
+Generates Part 1 (baseline) + Part 2 (sampling) trial-list CSV files for
+BubbleSem v2.
 
-Phase 2 (open-ended longer passages) is a separate stimulus set loaded from
+Part 3 (open-ended longer passages) is a separate stimulus set loaded from
 open_ended_passages.csv — it does not vary by sublist.
 
 Input
@@ -14,7 +15,7 @@ Required columns (pre-existing):
     og_passage_seed_number  -- groups the 4 entropy variants of each target passage
     passage_seed_num        -- unique ID for each row
     target_word
-    passage_variant         -- real English passage shown in Phase 1
+    passage_variant         -- real English passage shown in Part 1/2
     jabber_passage          -- jabberwocky version of passage_variant
     target_word_position    -- 0-indexed word position of target (ignoring punctuation)
     entropy
@@ -28,29 +29,37 @@ Columns to add before running (placeholders added automatically if absent):
 
 Output
 ------
-trial_lists/sublist_1.csv ... trial_lists/sublist_8.csv
-    columns: phase, target_word, passage_variant, jabber_passage,
-             target_word_position, masking_level, unmasked_word_indices,
-             entropy, target_probability, target_log_probability,
-             target_pos, og_passage_seed_number
+trial_lists/sublist_1.csv ... trial_lists/sublist_16.csv
+    columns: trial_number, condition, real_passage, jabber_passage,
+             target_word, target_word_position, unmasked_word_indices,
+             reveal_order, entropy, target_probability, target_log_probability,
+             target_pos, og_passage_seed_number, passage_id
 
-    All 20 rows per sublist have phase='baseline'.
-    10 rows have masking_level='some'  (40% of greedy-trajectory words revealed)
-    10 rows have masking_level='most'  (20% of greedy-trajectory words revealed)
+    All 20 concept rows per sublist have condition in {some_masked, most_masked, sampling}.
+    5  rows have condition='some_masked'  (40% of greedy-trajectory words revealed)
+    5  rows have condition='most_masked'  (20% of greedy-trajectory words revealed)
+    10 rows have condition='sampling'     (all words start masked; revealed one at a
+                                            time, in greedy-trajectory order, during
+                                            the task — see reveal_order)
 
 Design
 ------
 20 target concepts, each with 4 entropy variants.
-2 Phase 1 conditions: some_masked | most_masked
-8 sublists = 2 condition rotations x 4 entropy rotations
+3 Part 1/2 conditions: some_masked | most_masked | sampling
+16 sublists = 4 condition rotations x 4 entropy rotations
 
-    sublist_num = condition_rotation * 4 + entropy_rotation + 1   (1..8)
+    sublist_num = condition_rotation * 4 + entropy_rotation + 1   (1..16)
 
-Concepts split into 2 groups of 10 (G0, G1):
-    CR=0: G0=some_masked,  G1=most_masked
-    CR=1: G0=most_masked,  G1=some_masked
+Concepts split into 4 groups of 5 (G0..G3). Each condition rotation (CR)
+assigns every group a role from a fixed role sequence, cycled by group index:
 
-Each participant sees all 20 concepts: 10 some_masked + 10 most_masked.
+    ROLE_SEQUENCE = ['some_masked', 'most_masked', 'sampling', 'sampling']
+    role(group, CR) = ROLE_SEQUENCE[(group - CR) % 4]
+
+so that across CR=0..3, every group takes each position in ROLE_SEQUENCE
+exactly once: some_masked once, most_masked once, sampling twice.
+
+Each participant sees all 20 concepts: 5 some_masked + 5 most_masked + 10 sampling.
 
 Entropy-level assignment per concept per sublist:
     Variants sorted low->high entropy (levels 0..3).
@@ -58,11 +67,16 @@ Entropy-level assignment per concept per sublist:
     This spreads entropy levels across concepts within each sublist so that
     no single condition disproportionately samples high or low entropy.
 
-Full coverage across 8 sublists:
-    Each concept appears in some_masked 4 times (once per ER, at both CRs → 4)
-    and most_masked 4 times. Every entropy variant of every concept appears in
-    both conditions exactly once.
-    Minimum participants for full coverage: 8 (one per sublist).
+Full coverage across 16 sublists:
+    Each concept appears in some_masked once and most_masked once per entropy
+    level (4 CRs x 4 ERs = 16 sublists, but a concept's role is fixed for a
+    given CR across all 4 ERs, so its 4 some_masked/most_masked appearances —
+    whichever CR lands on that role — sweep all 4 entropy levels exactly once).
+    Because sampling occupies 2 of the 4 role slots per concept, each concept's
+    (target_word, entropy) pair appears in sampling exactly twice across the
+    16 sublists — twice the replication of the masking conditions, matching
+    the 5:5:10 per-sublist ratio.
+    Minimum participants for full coverage: 16 (one per sublist).
 """
 
 import json
@@ -76,12 +90,12 @@ import re
 INPUT_CSV             = 'all_stimuli.csv'
 SEED                  = 42
 N_CONCEPTS            = 20
-N_CONDITIONS          = 2   # some_masked, most_masked
+N_ROLE_GROUPS         = 4   # concepts split into 4 groups of 5
 N_ENTROPY_LEVELS      = 4
-N_CONDITION_ROTATIONS = 2
-N_SUBLISTS            = N_CONDITION_ROTATIONS * N_ENTROPY_LEVELS  # 8
+N_CONDITION_ROTATIONS = 4
+N_SUBLISTS            = N_CONDITION_ROTATIONS * N_ENTROPY_LEVELS  # 16
 
-CONDITIONS = ['some_masked', 'most_masked']
+ROLE_SEQUENCE = ['some_masked', 'most_masked', 'sampling', 'sampling']
 
 SHARED_COLS = [
     'target_word', 'passage_variant', 'jabber_passage',
@@ -94,7 +108,8 @@ OPEN_ENDED_CSV = 'open_ended_passages.csv'
 COL_ORDER = [
     'trial_number', 'condition',
     'real_passage', 'jabber_passage',
-    'target_word', 'target_word_position', 'unmasked_word_indices',
+    'target_word', 'target_word_position',
+    'unmasked_word_indices', 'reveal_order',
     'entropy', 'target_probability', 'target_log_probability',
     'target_pos', 'og_passage_seed_number',
     'passage_id',
@@ -155,11 +170,12 @@ if 'target_word_position' not in df.columns or df['target_word_position'].isna()
             print(f'    seed={row["passage_seed_num"]} target="{row["target_word"]}"  '
                   f'passage: {row["passage_variant"][:80]}')
 
-# ── Load greedy trajectories and compute unmasked indices ─────────────────────
+# ── Load greedy trajectories and compute unmasked/reveal-order columns ────────
 # Words are pre-revealed from the START of the (uncapped) greedy trajectory,
 # most informative first. Matches the case study's condition_trajectories.py:
 #   some_masked -> top 40% of the trajectory revealed (more context shown)
 #   most_masked -> top 20% of the trajectory revealed (fewer words shown)
+#   sampling    -> the full trajectory, revealed one word at a time in order
 
 GREEDY_CSV = 'passage_greedy_trajectories.csv'
 print(f'Loading {GREEDY_CSV}...')
@@ -182,17 +198,19 @@ greedy_df['unmasked_word_indices_most'] = greedy_df['greedy_indices'].apply(
 )
 
 df = df.merge(
-    greedy_df[['real_passage', 'unmasked_word_indices_some', 'unmasked_word_indices_most']],
+    greedy_df[['real_passage', 'unmasked_word_indices_some', 'unmasked_word_indices_most', 'greedy_indices']],
     left_on='passage_variant',
     right_on='real_passage',
     how='left'
 ).drop(columns='real_passage')
+df = df.rename(columns={'greedy_indices': 'reveal_order'})
 
 n_missing = df['unmasked_word_indices_some'].isna().sum()
 if n_missing > 0:
     print(f'  WARNING: {n_missing} rows had no match in {GREEDY_CSV} — defaulting to []')
     df['unmasked_word_indices_some'] = df['unmasked_word_indices_some'].fillna('[]')
     df['unmasked_word_indices_most'] = df['unmasked_word_indices_most'].fillna('[]')
+    df['reveal_order']               = df['reveal_order'].fillna('[]')
 else:
     print(f'  OK   greedy indices merged for all {len(df)} rows')
 
@@ -229,17 +247,17 @@ for tw, g in groups.items():
     if len(g) < N_ENTROPY_LEVELS:
         print(f'  WARNING: "{tw}" has only {len(g)} entropy variants (need {N_ENTROPY_LEVELS}).')
 
-# ── Assign concepts to 2 fixed groups of 10 ───────────────────────────────────
+# ── Assign concepts to 4 fixed groups of 5 ────────────────────────────────────
 
 rng = np.random.default_rng(SEED)
 shuffled_keys = rng.permutation(list(groups.keys())).tolist()
 
-# Split as evenly as possible into N_CONDITIONS groups
+# Split as evenly as possible into N_ROLE_GROUPS groups
 concept_groups = []
 n = len(shuffled_keys)
-base_size, remainder = divmod(n, N_CONDITIONS)
+base_size, remainder = divmod(n, N_ROLE_GROUPS)
 start = 0
-for i in range(N_CONDITIONS):
+for i in range(N_ROLE_GROUPS):
     size = base_size + (1 if i < remainder else 0)
     concept_groups.append(shuffled_keys[start:start + size])
     start += size
@@ -248,7 +266,7 @@ print('\nConcept-to-group assignment:')
 for gi, group in enumerate(concept_groups):
     print(f'  G{gi} ({len(group)} concepts): {group}')
 
-# ── Generate 8 sublists ────────────────────────────────────────────────────────
+# ── Generate 16 sublists ───────────────────────────────────────────────────────
 
 os.makedirs('trial_lists', exist_ok=True)
 print('\nGenerating sublists...')
@@ -259,7 +277,7 @@ for cr in range(N_CONDITION_ROTATIONS):
         rows = []
 
         for group_idx, target_list in enumerate(concept_groups):
-            condition = CONDITIONS[(group_idx + cr) % N_CONDITIONS]
+            role = ROLE_SEQUENCE[(group_idx - cr) % N_ROLE_GROUPS]
 
             for target_word in target_list:
                 concept_df = groups[target_word]
@@ -271,19 +289,26 @@ for cr in range(N_CONDITION_ROTATIONS):
                 row         = concept_df.iloc[entropy_lvl]
                 base        = {col: row.get(col, '') for col in SHARED_COLS}
 
-                if condition == 'some_masked':
+                if role == 'some_masked':
                     rows.append({
                         **base,
                         'condition':             'some_masked',
                         'real_passage':           row['passage_variant'],
                         'unmasked_word_indices':  row['unmasked_word_indices_some'],
                     })
-                else:  # most_masked
+                elif role == 'most_masked':
                     rows.append({
                         **base,
                         'condition':             'most_masked',
                         'real_passage':           row['passage_variant'],
                         'unmasked_word_indices':  row['unmasked_word_indices_most'],
+                    })
+                else:  # sampling
+                    rows.append({
+                        **base,
+                        'condition':    'sampling',
+                        'real_passage': row['passage_variant'],
+                        'reveal_order': row['reveal_order'],
                     })
 
         all_rows = rows + open_ended_rows
@@ -294,22 +319,25 @@ for cr in range(N_CONDITION_ROTATIONS):
         sublist_file = f'trial_lists/sublist_{sublist_num}.csv'
         out_df.to_csv(sublist_file, index=False)
 
-        n_some = sum(1 for r in rows if r['condition'] == 'some_masked')
-        n_most = sum(1 for r in rows if r['condition'] == 'most_masked')
+        n_some     = sum(1 for r in rows if r['condition'] == 'some_masked')
+        n_most     = sum(1 for r in rows if r['condition'] == 'most_masked')
+        n_sampling = sum(1 for r in rows if r['condition'] == 'sampling')
         print(f'  Sublist {sublist_num:2d} (CR={cr}, ER={er}):  '
               f'{len(all_rows)} trials — {n_some} some_masked, {n_most} most_masked, '
-              f'{len(open_ended_rows)} open_ended  →  {sublist_file}')
+              f'{n_sampling} sampling, {len(open_ended_rows)} open_ended  →  {sublist_file}')
 
 # ── Validation ─────────────────────────────────────────────────────────────────
 
 print('\nValidation:')
 
-# 1. No duplicate target words within any sublist's baseline rows
+CONCEPT_CONDITIONS = ['some_masked', 'most_masked', 'sampling']
+
+# 1. No duplicate target words within any sublist's concept rows
 all_ok = True
 for sl in range(1, N_SUBLISTS + 1):
     df_sl   = pd.read_csv(f'trial_lists/sublist_{sl}.csv')
-    baseline = df_sl[df_sl['condition'].isin(['some_masked', 'most_masked'])]
-    targets  = list(baseline['target_word'])
+    concept_rows = df_sl[df_sl['condition'].isin(CONCEPT_CONDITIONS)]
+    targets  = list(concept_rows['target_word'])
     dupes    = [t for t in set(targets) if targets.count(t) > 1]
     if dupes:
         print(f'  FAIL sublist {sl:2d}: duplicate target_words: {dupes}')
@@ -317,36 +345,42 @@ for sl in range(1, N_SUBLISTS + 1):
 if all_ok:
     print(f'  OK   no duplicate target_words in any sublist')
 
-# 2. Each sublist has 10 some_masked + 10 most_masked + N open_ended
+# 2. Each sublist has 5 some_masked + 5 most_masked + 10 sampling + N open_ended
 n_oe = len(open_ended_rows)
 counts_ok = True
 for sl in range(1, N_SUBLISTS + 1):
-    df_sl   = pd.read_csv(f'trial_lists/sublist_{sl}.csv')
-    n_some  = len(df_sl[df_sl['condition'] == 'some_masked'])
-    n_most  = len(df_sl[df_sl['condition'] == 'most_masked'])
-    n_oe_sl = len(df_sl[df_sl['condition'] == 'open_ended'])
-    if n_some != 10 or n_most != 10 or n_oe_sl != n_oe:
-        print(f'  FAIL sublist {sl:2d}: expected 10 some_masked + 10 most_masked + {n_oe} open_ended, '
-              f'got {n_some} + {n_most} + {n_oe_sl}')
+    df_sl      = pd.read_csv(f'trial_lists/sublist_{sl}.csv')
+    n_some     = len(df_sl[df_sl['condition'] == 'some_masked'])
+    n_most     = len(df_sl[df_sl['condition'] == 'most_masked'])
+    n_sampling = len(df_sl[df_sl['condition'] == 'sampling'])
+    n_oe_sl    = len(df_sl[df_sl['condition'] == 'open_ended'])
+    if n_some != 5 or n_most != 5 or n_sampling != 10 or n_oe_sl != n_oe:
+        print(f'  FAIL sublist {sl:2d}: expected 5 some_masked + 5 most_masked + 10 sampling '
+              f'+ {n_oe} open_ended, got {n_some} + {n_most} + {n_sampling} + {n_oe_sl}')
         counts_ok = False
 if counts_ok:
-    print(f'  OK   all {N_SUBLISTS} sublists: 10 some_masked + 10 most_masked + {n_oe} open_ended')
+    print(f'  OK   all {N_SUBLISTS} sublists: 5 some_masked + 5 most_masked + 10 sampling '
+          f'+ {n_oe} open_ended')
 
-# 3. Coverage: each (target_word, entropy, condition) cell appears exactly once across all sublists
+# 3. Coverage: each (target_word, entropy) cell appears exactly once in some_masked,
+#    exactly once in most_masked, and exactly twice in sampling, across all sublists.
 coverage = {}
 for sl in range(1, N_SUBLISTS + 1):
     df_sl = pd.read_csv(f'trial_lists/sublist_{sl}.csv')
-    baseline = df_sl[df_sl['condition'].isin(['some_masked', 'most_masked'])]
-    for _, row in baseline.iterrows():
+    concept_rows = df_sl[df_sl['condition'].isin(CONCEPT_CONDITIONS)]
+    for _, row in concept_rows.iterrows():
         key = (row['target_word'], round(float(row['entropy']), 6), row['condition'])
         coverage[key] = coverage.get(key, 0) + 1
 
+EXPECTED_COUNT = {'some_masked': 1, 'most_masked': 1, 'sampling': 2}
 coverage_ok = True
 for key, count in coverage.items():
-    if count != 1:
-        print(f'  NOTE cell {key} appears {count}x — likely duplicate entropy variants in source data')
+    _, _, condition = key
+    if count != EXPECTED_COUNT[condition]:
+        print(f'  NOTE cell {key} appears {count}x, expected {EXPECTED_COUNT[condition]}x')
         coverage_ok = False
 if coverage_ok:
-    print(f'  OK   every (target_word, entropy, condition) cell appears exactly once')
+    print(f'  OK   every (target_word, entropy) cell appears once in some_masked, once in '
+          f'most_masked, and twice in sampling')
 
 print('\nDone.')
