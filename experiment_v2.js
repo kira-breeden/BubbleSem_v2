@@ -526,7 +526,7 @@ function createSamplingTrial(trial, sectionTrialIndex, totalSampling, trialNumbe
                     html += `<span class="word">${realTokens[i]}</span> `;
                 } else {
                     // All other words start masked; id used for DOM update on reveal
-                    html += `<span class="word clickable" id="word-tok-${i}"
+                    html += `<span class="word nonce" id="word-tok-${i}"
                                    data-real="${realTokens[i]}">${token}</span> `;
                 }
             }
@@ -571,7 +571,7 @@ function createSamplingTrial(trial, sectionTrialIndex, totalSampling, trialNumbe
                 const wordEl = document.getElementById(`word-tok-${tokenIdx}`);
                 if (wordEl) {
                     wordEl.textContent = realTokens[tokenIdx];
-                    wordEl.classList.remove('clickable');
+                    wordEl.classList.remove('nonce');
                     wordEl.classList.add('revealed');
                 }
 
@@ -1134,34 +1134,31 @@ const savingScreen = {
     trial_duration: 1000
 };
 
-// ===== TIMELINE =====
+// ===== TIMELINE BLOCK BUILDERS =====
+// Each builder returns an array of timeline nodes for one part. Pulled out
+// of createTimeline() so demo mode (see below) can assemble a run starting
+// from any part, not just the full Part 1 -> 2 -> 3 sequence.
 
-async function createTimeline() {
-    sublistNumber = await assignSublist();
-    console.log(`SubjectCode: ${subjCode} | Sublist: ${sublistNumber} | Seed: ${randomSeed}`);
-    await loadAllTrialData();
+// counter is a mutable { n } ref so trial_number stays contiguous however
+// the blocks get assembled.
 
-    const timeline = [
-        consent,
-        enterFullscreen,
-        welcome,
+function buildPart1Block(counter) {
+    const events = [
         baselineInstructions1,
         baselineInstructions2,
         practiceInstructions,
     ];
 
-    // --- Practice trials ---
-    let globalTrialNum = 1;
     PRACTICE_TRIAL_DATA.forEach((p) => {
-        timeline.push(createHardcodedTrial(p.passageHtml, p.targetWord, 'practice', globalTrialNum++));
-        timeline.push(createGuessInputTrial());
-        timeline.push(createConfidenceRatingTrial());
-        timeline.push(createFeedbackTrial({ target_word: p.targetWord }));
+        events.push(createHardcodedTrial(p.passageHtml, p.targetWord, 'practice', counter.n++));
+        events.push(createGuessInputTrial());
+        events.push(createConfidenceRatingTrial());
+        events.push(createFeedbackTrial({ target_word: p.targetWord }));
     });
 
-    timeline.push(practiceCompleteScreen);
+    events.push(practiceCompleteScreen);
 
-    // --- Part 1: baseline trials with attention checks at ~1/3 and ~2/3 ---
+    // Baseline trials with attention checks at ~1/3 and ~2/3
     const totalBaseline = baselineTrialData.length;
     let attnCheckIdx = 0;
     const attnInsertAfter = new Set([
@@ -1170,101 +1167,179 @@ async function createTimeline() {
     ]);
 
     baselineTrialData.forEach((trial, i) => {
-        timeline.push(createBaselineTrial(trial, i, totalBaseline, globalTrialNum++));
-        timeline.push(createGuessInputTrial());
-        timeline.push(createConfidenceRatingTrial());
-        timeline.push(createFeedbackTrial(trial));
+        events.push(createBaselineTrial(trial, i, totalBaseline, counter.n++));
+        events.push(createGuessInputTrial());
+        events.push(createConfidenceRatingTrial());
+        events.push(createFeedbackTrial(trial));
 
         if (attnInsertAfter.has(i) && attnCheckIdx < ATTENTION_CHECK_DATA.length) {
             const check = ATTENTION_CHECK_DATA[attnCheckIdx];
-            timeline.push(createHardcodedTrial(check.passageHtml, check.targetWord, 'attention_check', globalTrialNum++));
-            timeline.push(createGuessInputTrial());
-            timeline.push(createConfidenceRatingTrial());
-            timeline.push(createFeedbackTrial({ target_word: check.targetWord }));
+            events.push(createHardcodedTrial(check.passageHtml, check.targetWord, 'attention_check', counter.n++));
+            events.push(createGuessInputTrial());
+            events.push(createConfidenceRatingTrial());
+            events.push(createFeedbackTrial({ target_word: check.targetWord }));
             attnCheckIdx++;
         }
     });
 
-    // --- Transition to Part 2 ---
-    timeline.push(transitionScreen);
-    timeline.push(samplingInstructions1);
-    timeline.push(samplingInstructions2);
+    return events;
+}
 
-    // --- Part 2: sampling trials ---
+// showTransitionIn: include the "Part N complete!" transition screen that
+// leads into this part. Only meaningful when the previous part was actually
+// played earlier in this same run — demo mode starting here skips it.
+function buildPart2Block(counter, { showTransitionIn }) {
+    const events = [];
+    if (showTransitionIn) events.push(transitionScreen);
+    events.push(samplingInstructions1, samplingInstructions2);
+
     const totalSampling = samplingTrialData.length;
     samplingTrialData.forEach((trial, i) => {
-        timeline.push(createSamplingTrial(trial, i, totalSampling, globalTrialNum++));
-        timeline.push(createGuessInputTrial());
-        timeline.push(createConfidenceRatingTrial());
-        timeline.push(createFeedbackTrial(trial));
+        events.push(createSamplingTrial(trial, i, totalSampling, counter.n++));
+        events.push(createGuessInputTrial());
+        events.push(createConfidenceRatingTrial());
+        events.push(createFeedbackTrial(trial));
     });
 
-    // --- Transition to Part 3 ---
-    timeline.push(transitionScreen2);
-    timeline.push(openEndedInstructions1);
-    timeline.push(openEndedInstructions2);
+    return events;
+}
 
-    // --- Part 3: open-ended passage trials ---
+function buildPart3Block(counter, { showTransitionIn }) {
+    const events = [];
+    if (showTransitionIn) events.push(transitionScreen2);
+    events.push(openEndedInstructions1, openEndedInstructions2);
+
     const totalOpenEnded = openEndedTrialData.length;
     openEndedTrialData.forEach((trial, i) => {
-        timeline.push(createOpenEndedTrial(trial, i, totalOpenEnded, globalTrialNum++));
+        events.push(createOpenEndedTrial(trial, i, totalOpenEnded, counter.n++));
     });
 
-    // --- Saving screen + data pipe save ---
-    timeline.push(savingScreen);
+    return events;
+}
 
-    timeline.push({
-        type: jsPsychPipe,
-        action: 'save',
-        experiment_id: 'PYSjeESL3lfq',
-        filename: `${subjCode}.csv`,
-        data_string: () => {
-            console.log(`Saving ${consolidatedTrials.length} trials...`);
-            if (consolidatedTrials.length > 0) {
-                console.log('Columns:', Object.keys(consolidatedTrials[0]));
+function buildEndingBlock() {
+    return [
+        savingScreen,
+        {
+            type: jsPsychPipe,
+            action: 'save',
+            experiment_id: 'PYSjeESL3lfq',
+            filename: `${subjCode}.csv`,
+            data_string: () => {
+                console.log(`Saving ${consolidatedTrials.length} trials...`);
+                if (consolidatedTrials.length > 0) {
+                    console.log('Columns:', Object.keys(consolidatedTrials[0]));
+                }
+                return arrayToCSV(consolidatedTrials);
+            },
+            on_finish: function (data) {
+                if (data.success === false) {
+                    console.error('Data upload failed:', data);
+                } else {
+                    console.log('Data upload successful.');
+                }
             }
-            return arrayToCSV(consolidatedTrials);
         },
-        on_finish: function (data) {
-            if (data.success === false) {
-                console.error('Data upload failed:', data);
-            } else {
-                console.log('Data upload successful.');
-            }
+        {
+            type: jsPsychHtmlKeyboardResponse,
+            stimulus: function () {
+                const surveyURL = getURLParameter('survey_url')
+                    || 'https://uwmadison.co1.qualtrics.com/jfe/form/SV_2gBjgNQpFFwXvhQ';
+                const surveyWithId = `${surveyURL}${surveyURL.includes('?') ? '&' : '?'}subjCode=${subjCode}`;
+
+                setTimeout(() => { window.location.href = surveyWithId; }, 2000);
+
+                return `
+                    <div style="text-align: center; padding: 50px;">
+                        <h2>Thank you! You have one more step! </h2>
+                        <p style="font-size: 18px; margin: 30px 0;">
+                            Your data has been saved successfully.
+                        </p>
+                        <p style="font-size: 18px; margin: 30px 0;">
+                            You will be redirected to the final survey shortly...
+                        </p>
+                        <p style="font-size: 14px; color: #666; margin-top: 40px;">
+                            If you are not redirected automatically,
+                            <a href="${surveyWithId}" style="color: #2196f3;">click here</a>.
+                        </p>
+                    </div>
+                `;
+            },
+            choices: 'NO_KEYS',
+            trial_duration: null
         }
-    });
+    ];
+}
 
-    // --- Thank-you / redirect ---
-    timeline.push({
-        type: jsPsychHtmlKeyboardResponse,
-        stimulus: function () {
-            const surveyURL = getURLParameter('survey_url')
-                || 'https://uwmadison.co1.qualtrics.com/jfe/form/SV_2gBjgNQpFFwXvhQ';
-            const surveyWithId = `${surveyURL}${surveyURL.includes('?') ? '&' : '?'}subjCode=${subjCode}`;
+// ===== DEMO MODE =====
+// ?demo=true lets you click which part to start at, skipping consent and
+// fullscreen. The run still saves to DataPipe and redirects to Qualtrics
+// at the end, same as a real run — it just starts partway through.
 
-            setTimeout(() => { window.location.href = surveyWithId; }, 2000);
+function isDemoMode() {
+    const demoParam = getURLParameter('demo');
+    return demoParam === 'true' || demoParam === '1';
+}
 
-            return `
-                <div style="text-align: center; padding: 50px;">
-                    <h2>Thank you! You have one more step! </h2>
-                    <p style="font-size: 18px; margin: 30px 0;">
-                        Your data has been saved successfully.
-                    </p>
-                    <p style="font-size: 18px; margin: 30px 0;">
-                        You will be redirected to the final survey shortly...
-                    </p>
-                    <p style="font-size: 14px; color: #666; margin-top: 40px;">
-                        If you are not redirected automatically,
-                        <a href="${surveyWithId}" style="color: #2196f3;">click here</a>.
-                    </p>
-                </div>
-            `;
-        },
-        choices: 'NO_KEYS',
-        trial_duration: null
-    });
+function buildDemoPickerTrial(counter) {
+    return {
+        type: jsPsychHtmlButtonResponse,
+        stimulus: `
+            <div style="max-width: 600px; margin: 0 auto; text-align: left;">
+                <h2>Demo Mode</h2>
+                <p>Choose which part of the experiment to start at:</p>
+            </div>
+        `,
+        choices: ['Part 1 (Baseline)', 'Part 2 (Sampling)', 'Part 3 (Open-Ended)'],
+        on_finish: function (data) {
+            let block;
+            if (data.response === 0) {
+                block = [
+                    ...buildPart1Block(counter),
+                    ...buildPart2Block(counter, { showTransitionIn: true }),
+                    ...buildPart3Block(counter, { showTransitionIn: true }),
+                    ...buildEndingBlock(),
+                ];
+            } else if (data.response === 1) {
+                block = [
+                    ...buildPart2Block(counter, { showTransitionIn: false }),
+                    ...buildPart3Block(counter, { showTransitionIn: true }),
+                    ...buildEndingBlock(),
+                ];
+            } else {
+                block = [
+                    ...buildPart3Block(counter, { showTransitionIn: false }),
+                    ...buildEndingBlock(),
+                ];
+            }
+            jsPsych.addNodeToEndOfTimeline({ timeline: block });
+        }
+    };
+}
 
-    return timeline;
+// ===== TIMELINE =====
+
+async function createTimeline() {
+    sublistNumber = await assignSublist();
+    console.log(`SubjectCode: ${subjCode} | Sublist: ${sublistNumber} | Seed: ${randomSeed}`);
+    await loadAllTrialData();
+
+    const counter = { n: 1 }; // shared trial_number counter across all blocks
+
+    if (isDemoMode()) {
+        console.log('Demo mode active — showing part picker.');
+        return [buildDemoPickerTrial(counter)];
+    }
+
+    return [
+        consent,
+        enterFullscreen,
+        welcome,
+        ...buildPart1Block(counter),
+        ...buildPart2Block(counter, { showTransitionIn: true }),
+        ...buildPart3Block(counter, { showTransitionIn: true }),
+        ...buildEndingBlock(),
+    ];
 }
 
 // ===== ENTRY POINT =====

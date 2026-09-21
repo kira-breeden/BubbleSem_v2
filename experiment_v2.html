@@ -41,39 +41,22 @@
             cursor: default;
         }
 
-        /* ---- Sampling passage styles (matches BubbleSem/experiment.html) ---- */
+        /* ---- Sampling passage styles ---- */
+        /* Plain inline text like the baseline passage; revealed words are
+           just colored green, with no box/pill affordance since individual
+           words aren't clickable — only the "Reveal Next Word" button is. */
 
         .sampling-passage .word {
-            line-height: 1.5;
-            margin: 0 5px;
-            padding: 5px 10px;
-            cursor: pointer;
-            border-radius: 5px;
-            transition: all 0.3s ease;
-            display: inline-block;
-        }
-
-        .sampling-passage .word.clickable {
-            background-color: #e0e0e0;
-            border: 2px solid #ccc;
-        }
-
-        .sampling-passage .word.clickable:hover {
-            background-color: #d0d0d0;
-            border-color: #999;
+            display: inline;
         }
 
         .sampling-passage .word.revealed {
-            background-color: #c8e6c9;
-            border: 2px solid #4caf50;
-            cursor: default;
+            color: #2e7d32;
+            font-weight: 600;
         }
 
         .sampling-passage .word.target {
             font-weight: bold;
-            background-color: transparent;
-            border: none;
-            cursor: default;
         }
 
         .sampling-passage .word.article {
