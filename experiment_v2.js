@@ -504,9 +504,6 @@ function createSamplingTrial(trial, sectionTrialIndex, totalSampling, trialNumbe
 
             let html = `
                 <div style="position: relative;">
-                    <div class="trial-counter">
-                        Part 2 &mdash; Trial ${sectionTrialIndex + 1} of ${totalSampling}
-                    </div>
                     <div class="points-counter" id="points-counter">Points: ${trialPoints}</div>
                     <div class="sentence-container sampling-passage" id="sentence-container">
             `;
@@ -936,16 +933,15 @@ const samplingInstructions1 = {
     stimulus: `
         <div style="max-width: 600px; margin: 0 auto; text-align: left;">
             <h2>Part 2 Instructions</h2>
-            <p>In this part, passages start with <strong>all</strong> non-target words
+            <p>In this part, passages have <strong>all</strong> content words
             replaced by nonsense words. You can reveal the real words one at a time by
             clicking <strong>Reveal Next Word</strong>.</p>
             <p>Your job:</p>
             <ol>
-                <li>Read the passage (initially all nonsense except articles).</li>
-                <li>Click <strong>Reveal Next Word</strong> to reveal another word.
+                <li>Read the passage and take your time trying to figure out what the <strong>bolded word</strong> could be.</li>
+                <li>Click <strong>Reveal Next Word</strong> to reveal the meaning of a word.
                     Each revealed word will stay visible.</li>
-                <li>Click <strong>Make Guess</strong> whenever you feel ready — you do not
-                    need to reveal every word first!</li>
+                <li>Click <strong>Make Guess</strong> whenever you feel ready.</li>
                 <li>Type your best ONE-WORD guess and rate your confidence.</li>
             </ol>
             <p><em>Press any key to continue</em></p>
@@ -962,8 +958,6 @@ const samplingInstructions2 = {
             you reveal costs you some points.</p>
             <p>Try to guess the target word with as few reveals as possible to keep your
             score high!</p>
-            <p>You cannot choose which word is revealed next — only when to stop and
-            guess.</p>
             <p><strong>Please use ONE WORD guesses only.</strong></p>
             <p><em>Press any key to start Part 2</em></p>
         </div>
@@ -986,22 +980,22 @@ const transitionScreen2 = {
 // --- Part 3 instructions ---
 
 const OPEN_ENDED_EXAMPLE_PASSAGE = [
-    "Ghoc and splync . Splync he had gwob gwob . We 're doing a dwoque neight down .",
-    "Knurt sneese to to to dwoque Neight Down dwazz down . It 's scis when you shroosh",
-    "the throck wherg about this maunch in and out gheint . Knurt . The prerk wrudd is a",
-    "dwazz . The prerk gheathe is a blalf which is fuite . Knurt . Why you wherg I did",
-    "that ? I do n't ghegging greash because they twieve more sweil . Sneese to grong the",
+    "Ghoc and splync. Splync he had gwob gwob. We're doing a dwoque neight down.",
+    "Knurt sneese to to to dwoque Neight Down dwazz down. It's scis when you shroosh",
+    "the throck wherg about this maunch in and out gheint. Knurt. The prerk wrudd is a",
+    "dwazz. The prerk gheathe is a blalf which is fuite. Knurt. Why you wherg I did",
+    "that? I don't ghegging greash because they twieve more sweil. Sneese to grong the",
     "dwazz dwazz but the twoofs off have scuthed about this phu plaiths the blalf Blaint",
-    "in-and-out Gheint is the rirm in-and-out Gheint . Thweil , you greash what knime 's",
-    "threrb a plause . Knurt , you greash sweil threrb plauses for gwal these drorbs Nalc",
-    "gwalph whuile of the Dwazz-Dwazz . Knurt . No , just no do n't gwalph whuile of it",
-    "crolt the shroosh crolt . The shroosh prerk wrudd is a blalf to is a dwazz . Knurt .",
-    "That 's dwoll a flurl vewn flurl vewn dwaul threrb it Now threrb an grune shreight .",
-    "That 's brulf . That 's sprate . We do n't we do n't twieve to yalt , you greash ,",
-    "fru . So , knurt , it was brulf uzz . Knurt , it was girchs . So yipe plaith we did",
-    "a dwoque splusk of dwoss . So this plaith we phleethed to do wrudd again and we did",
-    "it for yisque yisque The Screrf and whadd cloop of dwoan strilges , which you will",
-    "phiv why Thweil , we 've scuthed about it a thwipe whealt a cralph here. ",
+    "in-and-out Gheint is the rirm in-and-out Gheint. Thweil, you greash what knime's",
+    "threrb a plause. Knurt, you greash sweil threrb plauses for gwal these drorbs Nalc",
+    "gwalph whuile of the Dwazz-Dwazz. Knurt. No, just no don't gwalph whuile of it",
+    "crolt the shroosh crolt. The shroosh prerk wrudd is a blalf to is a dwazz. Knurt.",
+    "That's dwoll a flurl vewn flurl vewn dwaul threrb it Now threrb an grune shreight.",
+    "That's brulf. That's sprate. We don't we don't twieve to yalt, you greash,",
+    "fru. So, knurt, it was brulf uzz. Knurt, it was girchs. So yipe plaith we did",
+    "a dwoque splusk of dwoss. So this plaith we phleethed to do wrudd again and we did",
+    "it for yisque yisque The Screrf and whadd cloop of dwoan strilges, which you will",
+    "phiv why Thweil, we've scuthed about it a thwipe whealt a cralph here. ",
 ].join(' ');
 
 const openEndedInstructions1 = {
@@ -1015,8 +1009,7 @@ const openEndedInstructions1 = {
             <p style="margin: 16px 30px; font-size: 17px;">
                 <em>"What do you think this passage is about?"</em>
             </p>
-            <p>We know this might seem pretty difficult with most of words masked with nonsense. 
-            But, there are no right or wrong answers! Do your best to understand and make a guess 
+            <p>We know this might seem pretty difficult, but, there are no right or wrong answers! Do your best to understand and make a guess 
             about what the passage is about.</p>
             <p><strong>Important:</strong> the nonsense words are randomly assigned
             and are not secretly related to the real words.</p>
