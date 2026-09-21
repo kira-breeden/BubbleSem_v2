@@ -818,6 +818,20 @@ const consent = {
     }
 };
 
+// Browsers require a user gesture to enter fullscreen — this click is that
+// gesture. Fullscreen is not exited automatically; it persists through the
+// final redirect to the Qualtrics survey.
+const enterFullscreen = {
+    type: jsPsychFullscreen,
+    fullscreen_mode: true,
+    message: `
+        <div style="max-width: 600px; margin: 0 auto; text-align: left;">
+            <p>This experiment works best in fullscreen mode.</p>
+        </div>
+    `,
+    button_label: 'Continue in Fullscreen'
+};
+
 const welcome = {
     type: jsPsychHtmlKeyboardResponse,
     stimulus: `
@@ -1129,6 +1143,7 @@ async function createTimeline() {
 
     const timeline = [
         consent,
+        enterFullscreen,
         welcome,
         baselineInstructions1,
         baselineInstructions2,
