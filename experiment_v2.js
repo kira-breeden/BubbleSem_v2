@@ -212,7 +212,7 @@ function arrayToCSV(data) {
 
 // ===== CONDITION ASSIGNMENT =====
 
-const EXPERIMENT_ID = 'PYSjeESL3lfq';
+const EXPERIMENT_ID = 'X5AacqE2Fa0Y';
 const N_SUBLISTS    = 16;
 
 // Returns a sublist number (1–16).
@@ -1216,7 +1216,7 @@ function buildEndingBlock() {
         {
             type: jsPsychPipe,
             action: 'save',
-            experiment_id: 'PYSjeESL3lfq',
+            experiment_id: EXPERIMENT_ID,
             filename: `${subjCode}.csv`,
             data_string: () => {
                 console.log(`Saving ${consolidatedTrials.length} trials...`);
